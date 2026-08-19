@@ -71,3 +71,10 @@ live_fixed.html
 qms_original_broken.html
 test_syntax.html
 .traeignore
+
+# ===== CJK corrupted md block (auto-added 2026-08-19) =====
+# Never upload: 閮ㄧ讲鎸囧紩.md (encoding-corrupted leftovers, filenames with UTF-8 boundary cuts)
+閮*.md
+*鎸囧紩*.md
+*鎸囧紩.md
+閮ㄧ讲*.md
