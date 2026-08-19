@@ -10170,13 +10170,18 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
     try{const a=JSON.parse(localStorage.getItem('qms_audits')||'[]');auditOpen=a.filter(x=>x.status==='📋 计划中'||x.status==='🚀 执行中'||x.status==='📝 不符合整改中').length}catch(e){}
     try{const s=JSON.parse(localStorage.getItem('qms_suppliers')||'[]');s.forEach(x=>{if(x.nextReview){const d1=new Date(x.nextReview+'T00:00:00'),d2=new Date(todayStr+'T00:00:00');if((d1-d2)/86400000<=30)supplierReview++}})}catch(e){}
     try{const tr=JSON.parse(localStorage.getItem('qms_trainings')||'[]');trainingDue=tr.filter(x=>x.status==='📝 计划中'||x.status==='🚀 进行中').length}catch(e){}
-    box.innerHTML=`
-/* v32 livestats risk card */
     let riskLedgerOpen=0,riskCaseOpen=0,devOpen=0;
     try{const a=JSON.parse(localStorage.getItem('qms_risk_ledger')||'[]');riskLedgerOpen=a.filter(r=>r.status!=='done'&&r.status!=='abandon').length}catch(e){}
     try{const a=JSON.parse(localStorage.getItem('qms_risk_cases')||'[]');riskCaseOpen=a.filter(r=>!r.status||r.status==='pending'||r.status==='fixing'||r.status==='comp'||r.status==='pause').length}catch(e){}
     try{const a=JSON.parse(localStorage.getItem('qms_deviation_ledger')||'[]');devOpen=a.filter(r=>r.status!=='closed').length}catch(e){}
     const riskDoing=riskLedgerOpen+riskCaseOpen+devOpen;
+    box.innerHTML=`
+
+
+
+
+
+
 
       <div class="stat-card live"><div class="stat-num">${myTodoCount}</div><div class="stat-label">我的待办</div><div class="stat-sub">本周+完整任务库</div></div>
       <div class="stat-card live warn"><div class="stat-num">${doneDeliv}/${totalDeliv}</div><div class="stat-label">MDR交付物</div><div class="stat-sub">我负责任务完成统计</div></div>
@@ -10482,7 +10487,7 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
     closePreview();renderMdrStages();
   }
   // ============ 脚本作用域保护：把 HTML 内联 onclick 用的函数统一显式挂到 window ============
-  // 背景：</script><script>//  标签间词法作用域隔离 + 部分浏览器对"连续多次弹窗"后 confirm() 静默返回 false，
+  // 背景：script 标签间词法作用域隔离 + 部分浏览器对"连续多次弹窗"后 confirm() 静默返回 false，
   // 会让用户视觉上觉得"按钮点了没反应"。显式挂 window 消灭 ReferenceError；移除 confirm 消灭静默失败。
   window.toggleMdrStage=toggleMdrStage;
   window.addDeliv=addDeliv;
