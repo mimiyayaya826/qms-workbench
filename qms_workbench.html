@@ -1219,7 +1219,7 @@ table tbody tr:hover td{
   <!-- 快速入口（可拖拽 + 角标）· 最上方 -->
   <div class="card">
     <h3><i data-lucide="zap" style="width:16px;height:16px;color:var(--lemon);stroke-width:2"></i>快速入口 <span style="font-size:12px;font-weight:400;color:var(--text-muted)">（按住卡片右上角 ☰ 拖动排序）</span></h3>
-    <div class="quick-grid" id="quickGrid"></div>
+    <div id="quickGrid"></div>
   </div>
 
 
@@ -10756,7 +10756,7 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
       var state=getQuickGroupState();
       var allCollapsed=true;
       secs.forEach(function(s){if(!state[s.key])allCollapsed=false});
-      var html='<div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:8px">'
+      var html='<div style="grid-column:1/-1;display:flex;align-items:center;justify-content:flex-end;margin-bottom:8px">'
         +'<button onclick="toggleAllQuickSections()" style="padding:4px 12px;border:1px solid var(--border);border-radius:6px;background:#fff;cursor:pointer;font-size:11px;color:#64748b">'+(allCollapsed?'🔽 全部展开':'🔼 全部折叠')+'</button>'
         +'</div>';
       secs.forEach(function(sec,idx){
@@ -10772,7 +10772,7 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
           +'<span style="font-size:11px;color:#94a3b8">('+items.length+')</span>'
           +'<span style="margin-left:auto;font-size:11px;color:#94a3b8">'+(collapsed?'▸ 展开':'▾ 折叠')+'</span>'
           +'</div>'
-          +(collapsed?'':'<div style="background:#f8fafc;border:1px solid #eef2f7;border-radius:10px;padding:10px" data-qsec="'+sec.key+'">'
+          +(collapsed?'':'<div style="grid-column:1/-1;background:#f8fafc;border:1px solid #eef2f7;border-radius:10px;padding:10px" data-qsec="'+sec.key+'">'
             +'<div class="quick-grid" style="gap:10px">'+items.map(function(c){
               var badgeHtml=c.badge?`<span class="quick-badge">${c.badge}</span>`:'';
               var handle=`<span class="qs-handle" onpointerdown="quickPDown(event,'${c.id}','${sec.key}',this)" title="按住拖动排序">☰</span>`;
