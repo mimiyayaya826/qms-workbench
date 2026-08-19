@@ -1,0 +1,73 @@
+# ============================================================
+#  QMS Workbench GitHub 上传忽略文件
+#  ⚠️  千万不要把左侧的文件/目录推到GitHub（隐私+体积+垃圾）
+# ============================================================
+
+# ---------- 🔴 隐私/敏感目录（绝对不能传！！！）----------
+# qms-desktop-app 是本地打包工具存放的 Edge 浏览器个人资料缓存
+# 包含：Cookie、已保存密码、浏览历史、登录态Token、头像、书签...
+# 泄露风险极高！！！一定不要传！！！
+qms-desktop-app/
+
+# ---------- 🟡 AI Agent生成的过程脚本（不是产品源码）----------
+# 这些是我们为了修改HTML批量处理用的Node/PowerShell脚本
+# 它们是"构建工具过程产物"，不是最终工作台代码的一部分
+_*.js
+_*.ps1
+_*.txt
+
+# ---------- 🔵 测试/比对临时产物 ----------
+_*.json
+_p_*.txt
+_syntaxcheck.js
+_runtest.js
+_verify.js
+_*.old
+_ovw_test.txt
+_syn.txt
+
+# ---------- 系统/IDE 垃圾 ----------
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
+node_modules/
+.vscode/
+.idea/
+*.tmp
+*.bak
+*.swp
+
+# ---------- PowerShell 执行策略/本地配置 ----------
+*.psm1
+*.psd1
+
+
+# ===== QMS-specific additions =====
+# Backup / patch / test files
+*.bak
+*.bak-*
+*.patch
+*.old
+test_*.html
+test_syntax*.html
+# Temporary scripts and data (kept local only)
+scripts/
+qa/
+.github/
+# Chinese-named process guides (local-only)
+【必看】*.txt
+*急救箱*.html
+*指引*.md
+*鎸囧紩*.md  # encoding-corrupted leftovers
+# Node / server temp files
+node_modules/
+*.tmp
+*.swp
+
+
+# ===== Debug / intermediate files (added after probe) =====
+live_fixed.html
+qms_original_broken.html
+test_syntax.html
+.traeignore
