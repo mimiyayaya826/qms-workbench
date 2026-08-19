@@ -143,7 +143,8 @@
   .quick-card:hover::before{transform:scale(2)}
   .quick-card .qicon{font-size:28px;margin-bottom:6px;display:block;transition:transform .2s;line-height:1}
   .quick-card:hover .qicon{transform:scale(1.12)}
-  .quick-card .qtitle{font-size:12px;font-weight:600;color:var(--text)}
+  .quick-card .qtitle{font-size:12px;font-weight:600;color:var(--text);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.6em;line-height:1.3}
+  .quick-card.quick-active{border-color:var(--primary);box-shadow:0 0 0 2px rgba(14,165,233,.18);background:linear-gradient(180deg,#f0f9ff,#fff)}
   a.quick-card{text-decoration:none;color:inherit;display:block}
   /* 移动端 */
   .menu-toggle{display:none;position:fixed;top:14px;right:14px;z-index:101;background:var(--primary);color:#fff;border:none;border-radius:var(--radius-sm);padding:8px 12px;font-size:16px;cursor:pointer;box-shadow:0 4px 12px rgba(108,156,232,.3)}
@@ -1132,26 +1133,18 @@ table tbody tr:hover td{
     <a class="nav-item" data-target="risk_cases"><i data-lucide="database" style="width:20px;height:20px;color:var(--amber,#d97706);stroke-width:1.8"></i>风险案例库</a>
     <a class="nav-item" data-target="deviation"><i data-lucide="alert-octagon" style="width:20px;height:20px;color:var(--peach);stroke-width:1.8"></i>偏差处理台账</a>
   </div>
-  <div class="nav-section" data-sec="supply">
-    <div class="nav-section-title" onclick="toggleNavSection(this)">供应链管理<span class="ns-arrow"><i data-lucide="chevron-down" style="width:10px;height:10px;stroke-width:3"></i></span></div>
-    
-  </div>
-  <div class="nav-section" data-sec="hr">
-    <div class="nav-section-title" onclick="toggleNavSection(this)">人力资源<span class="ns-arrow"><i data-lucide="chevron-down" style="width:10px;height:10px;stroke-width:3"></i></span></div>
-    
-    
-  </div>
 
-  <div class="nav-section" data-sec="pwds">
-    <div class="nav-section-title" onclick="toggleNavSection(this)">账号密码管理<span class="ns-arrow"><i data-lucide="chevron-down" style="width:10px;height:10px;stroke-width:3"></i></span></div>
-    <a class="nav-item" data-target="pwds"><i data-lucide="lock-keyhole" style="width:20px;height:20px;color:var(--danger);stroke-width:1.8"></i>账号密码台账</a>
-  </div>
   <div class="nav-section" data-sec="study">
     <div class="nav-section-title" onclick="toggleNavSection(this)"><span style="color:#fde68a">🎯</span> 个人学习计划<span class="ns-arrow"><i data-lucide="chevron-down" style="width:10px;height:10px;stroke-width:3"></i></span></div>
     <a class="nav-item" data-target="study"><i data-lucide="book-open-text" style="width:20px;height:20px;color:var(--mint);stroke-width:1.8"></i>学习仪表盘（成考/四六级/考公）</a>
     <a class="nav-item" data-target="study" onclick="setTimeout(function(){studySwitchTab('todos')},120)"><i data-lucide="notebook-pen" style="width:20px;height:20px;color:var(--warning);stroke-width:1.8"></i>学习任务清单</a>
     <a class="nav-item" data-target="study" onclick="setTimeout(function(){studySwitchTab('mistakes')},120)"><i data-lucide="x-circle" style="width:20px;height:20px;color:var(--danger);stroke-width:1.8"></i>艾宾浩斯错题本</a>
     <a class="nav-item" data-target="study" onclick="setTimeout(function(){studySwitchTab('resources')},120)"><i data-lucide="folder-open" style="width:20px;height:20px;color:var(--warning);stroke-width:1.8"></i>资料/PDF 收藏</a>
+  </div>
+
+  <div class="nav-section" data-sec="pwds">
+    <div class="nav-section-title" onclick="toggleNavSection(this)">账号密码管理<span class="ns-arrow"><i data-lucide="chevron-down" style="width:10px;height:10px;stroke-width:3"></i></span></div>
+    <a class="nav-item" data-target="pwds"><i data-lucide="lock-keyhole" style="width:20px;height:20px;color:var(--danger);stroke-width:1.8"></i>账号密码台账</a>
   </div>
   <!-- BUG9 新增：页面访问密码栏目 -->
   <div class="nav-section" data-sec="sitepwd">
@@ -1222,6 +1215,15 @@ table tbody tr:hover td{
     <div class="desc">体系工程师日常工作总览 · 公司阶段：MDD 证书持有中，MDR 认证进行中</div>
   </div>
 
+
+  <!-- 快速入口（可拖拽 + 角标）· 最上方 -->
+  <div class="card">
+    <h3><i data-lucide="zap" style="width:16px;height:16px;color:var(--lemon);stroke-width:2"></i>快速入口 <span style="font-size:12px;font-weight:400;color:var(--text-muted)">（按住卡片右上角 ☰ 拖动排序）</span></h3>
+    <div class="quick-grid" id="quickGrid"></div>
+  </div>
+
+
+
   <!-- 风险预警横幅 -->
   <div class="alert-banner open" id="alertBanner">
     <div class="alert-banner-head" onclick="document.getElementById('alertBanner').classList.toggle('open')">
@@ -1240,13 +1242,6 @@ table tbody tr:hover td{
     <div class="alert-banner-body" id="regUpdateBody"></div>
   </div>
 
-  <!-- 快速入口（可拖拽 + 角标）· 最上方 -->
-  <div class="card">
-    <h3><i data-lucide="zap" style="width:16px;height:16px;color:var(--lemon);stroke-width:2"></i>快速入口 <span style="font-size:12px;font-weight:400;color:var(--text-muted)">（按住卡片右上角 ☰ 拖动排序）</span></h3>
-    <div class="quick-grid" id="quickGrid"></div>
-  </div>
-
-
   <!-- 🐶 可爱欢迎Banner -->
   <div style="position:relative;background:linear-gradient(135deg,var(--pink-light),var(--primary-bg),var(--mint-light));border-radius:var(--radius);padding:16px 20px;margin-bottom:20px;overflow:hidden;box-shadow:var(--shadow);border:1px solid #fff">
     <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
@@ -1264,11 +1259,7 @@ table tbody tr:hover td{
         <span style="position:absolute;top:-2px;right:-4px;font-size:12px;animation:pulse-soft 1.5s ease-in-out infinite">💕</span>
       </div>
       <div style="flex:1;min-width:200px">
-        <div style="font-size:16px;font-weight:700;color:var(--primary-dark);margin-bottom:2px;display:flex;align-items:center;gap:6px">
-          <i data-lucide="sun-medium" style="width:18px;height:18px;color:var(--lemon);stroke-width:2"></i>
-          欢迎回来，今天也要元气满满哦～
-        </div>
-        <div style="font-size:12px;color:var(--text-muted);margin-top:4px">截止今日，有 <b style="color:var(--danger)">3</b> 项风险预警，<b style="color:var(--warning)">5</b> 件待办待处理，<b style="color:var(--primary)">12</b> 份文档正在审核。加油！🐾</div>
+        <div id="dogBannerStats" style="font-size:12px;color:var(--text-muted);margin-top:4px">正在统计今日数据… 🐾</div>
       </div>
       <div style="flex-shrink:0;display:flex;gap:16px;opacity:.5;font-size:20px;pointer-events:none">
         <span style="animation:bounce-soft 1.8s ease-in-out infinite">🐾</span>
@@ -2332,7 +2323,7 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
   var KEY='qms_risk_ledger';
   var ST_META={new:{l:'🆕 已识别',c:'#2563eb',bg:'#eff6ff'},told:{l:'📢 已告知',c:'#0891b2',bg:'#ecfeff'},pause:{l:'⏸ 暂缓',c:'#d97706',bg:'#fffbeb'},doing:{l:'🚀 推进中',c:'#7c3aed',bg:'#f5f3ff'},done:{l:'✅ 已闭环',c:'#059669',bg:'#ecfdf5'},abandon:{l:'❌ 已放弃',c:'#dc2626',bg:'#fef2f2'}};
   function rlLoad(){try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){return []}}
-  function rlSave(a){try{localStorage.setItem(KEY,JSON.stringify(a))}catch(e){}}
+  function rlSave(a){try{localStorage.setItem(KEY,JSON.stringify(a))}catch(e){}try{window.renderQuickGrid&&renderQuickGrid()}catch(e){}}
   function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
   function today(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
   function nextNo(arr){var y=new Date().getFullYear();var max=0;arr.forEach(function(r){var m=String(r.no||'').match(new RegExp('R-'+y+'-(\\d+)'));if(m)max=Math.max(max,+m[1])});return 'R-'+y+'-'+String(max+1).padStart(3,'0')}
@@ -2436,7 +2427,7 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
   var KEY='qms_risk_cases';
   var ST_META={closed:{l:'🟢 已闭环',c:'#059669',bg:'#ecfdf5'},comp:{l:'🟡 妥协中(持续)',c:'#b45309',bg:'#fffbeb'},fixing:{l:'🔴 整改中',c:'#dc2626',bg:'#fef2f2'},pending:{l:'⚪ 待决',c:'#64748b',bg:'#f1f5f9'},pause:{l:'⏸ 暂缓',c:'#d97706',bg:'#fffbeb'}};
   function rcLoad(){try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){return []}}
-  function rcSave(a){try{localStorage.setItem(KEY,JSON.stringify(a))}catch(e){}}
+  function rcSave(a){try{localStorage.setItem(KEY,JSON.stringify(a))}catch(e){}try{window.renderQuickGrid&&renderQuickGrid()}catch(e){}}
   function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
   function today(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
   function nextNo(arr){var y=new Date().getFullYear();var max=0;arr.forEach(function(r){var m=String(r.no||'').match(new RegExp('C-'+y+'-(\\d+)'));if(m)max=Math.max(max,+m[1])});return 'C-'+y+'-'+String(max+1).padStart(3,'0')}
@@ -2545,7 +2536,7 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
   var LV_APPROVE={1:'QA审核 → 管理者代表批准',2:'QA审核 → 质量负责人批准',3:'部门负责人复核 → QA确认关闭'};
   var LV_TIMELINE={1:{report:'立即口头报告，4小时内书面立项',invest:'原则上15个工作日内'},2:{report:'发现当日完成书面报告',invest:'原则上10个工作日内'},3:{report:'1个工作日内完成书面报告',invest:'原则上5个工作日内'}};
   function devLoad(){try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){return []}}
-  function devSave(a){try{localStorage.setItem(KEY,JSON.stringify(a))}catch(e){}}
+  function devSave(a){try{localStorage.setItem(KEY,JSON.stringify(a))}catch(e){}try{window.renderQuickGrid&&renderQuickGrid()}catch(e){}}
   function devGetPrefix(){try{return localStorage.getItem('qms_dev_prefix')||'HFPC'}catch(e){return 'HFPC'}}
   function devSetPrefix(v){try{localStorage.setItem('qms_dev_prefix',v)}catch(e){}}
   window.devSavePrefix=function(){var el=document.getElementById('devPrefix');if(el)devSetPrefix(el.value.trim()||'HFPC');toast('💾 编号前缀已保存')};
@@ -9965,6 +9956,12 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
     try{const s=JSON.parse(localStorage.getItem('qms_suppliers')||'[]');s.forEach(x=>{if(x.nextReview){const d1=new Date(x.nextReview+'T00:00:00'),d2=new Date(todayStr+'T00:00:00');if((d1-d2)/86400000<=30)supplierReview++}if(x.grade==='D级（不合格，淘汰）')DGrade++})}catch(e){}
     let trainingDue=0,cert30=0;
     try{const tr=JSON.parse(localStorage.getItem('qms_trainings')||'[]');trainingDue=tr.filter(x=>x.status==='📝 计划中'||x.status==='🚀 进行中').length;tr.forEach(x=>{(x.roster||[]).forEach(p=>{if(p.certExpire){const d1=new Date(p.certExpire+'T00:00:00'),d2=new Date(todayStr+'T00:00:00');const days=(d1-d2)/86400000;if(days<=30&&days>=0)cert30++}})})}catch(e){}
+    // v32 风险台账计数
+    let riskLedgerTodo=0,riskCaseTodo=0,devTodo=0,qaProduct=0;
+    try{const a=JSON.parse(localStorage.getItem('qms_risk_ledger')||'[]');riskLedgerTodo=a.filter(r=>r.status!=='done'&&r.status!=='abandon').length}catch(e){}
+    try{const a=JSON.parse(localStorage.getItem('qms_risk_cases')||'[]');riskCaseTodo=a.filter(r=>!r.status||r.status==='pending'||r.status==='fixing').length}catch(e){}
+    try{const a=JSON.parse(localStorage.getItem('qms_deviation_ledger')||'[]');devTodo=a.filter(r=>r.status!=='closed').length}catch(e){}
+    try{const a=JSON.parse(localStorage.getItem('qms_qa_notes')||'[]');qaProduct=a.length}catch(e){}
     // 合规体检汇总（法规待复查 + 条款核心未解读 + 证书临期 + CAPA逾期）
     let complianceCount=0;
     try{const rc=JSON.parse(localStorage.getItem('qms_reg_changes')||'[]');(rc||[]).forEach(r=>{const cy=Math.max(parseInt(r.monitorCycle)||90,7);const last=r.lastCheckDate||r.createDate||'';if(last){const d=new Date(last+'T00:00:00');d.setDate(d.getDate()+cy);if(new Date(d)<new Date(todayStr+'T00:00:00'))complianceCount++}})}catch(e){}
@@ -9981,7 +9978,10 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
       {label:'法规变更 需应对',count:rtPending,target:'regtrack',desc:`重大影响${rtMajor}项`,urgent:rtMajor>0},
       {label:'管理评审 待推进',count:mrInput+mrImprov,target:'mreview',desc:`输入收集${mrInput}·改进跟踪${mrImprov}`,urgent:mrInput>0},
       {label:'文件清单 待完善',count:0,target:'m4',desc:'SOP按需新建/升级（自行在待办录入）',urgent:false},
-      {label:'实操项目 自定义',count:0,target:'transition',desc:'记录在实操记录栏目',urgent:false}
+      {label:'实操项目 自定义',count:0,target:'transition',desc:'记录在实操记录栏目',urgent:false},
+      {label:'风险识别 待闭环',count:riskLedgerTodo,target:'risk_ledger',desc:'未闭环风险事项',urgent:riskLedgerTodo>0},
+      {label:'偏差 未关闭',count:devTodo,target:'deviation',desc:'含调查/处置/待审批',urgent:devTodo>0},
+      {label:'QA 产品档案',count:qaProduct,target:'qa_notes',desc:'产线学习笔记',urgent:false}
     ];
     grid.innerHTML=cards.map(c=>`
       <div class="agg-card ${c.urgent?'urgent':''}" onclick="showModule('${c.target}')">
@@ -9995,7 +9995,7 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
   renderAggTodos();
   // 切换到首页时刷新聚合区
   const origShowModule=showModule;
-  showModule=function(id){origShowModule(id);if(id==='dashboard'){renderAggTodos();renderAlerts();renderLiveStats();renderWeekTodo();renderMdrStages();renderQuickGrid()}if(id==='study'){try{renderStudy&&renderStudy()}catch(e){console.error('study render error:',e)}}if(id==='risk_ledger'){try{rlRender&&rlRender()}catch(e){}}if(id==='risk_cases'){try{rcRender&&rcRender()}catch(e){}}if(id==='deviation'){try{devRender&&devRender()}catch(e){}}if(id==='qa_notes'){try{qnRender&&qnRender()}catch(e){}}if(id==='reg_registrar'){try{renderRegLaw&&renderRegLaw('reg_registrar');renderRegPractice&&renderRegPractice()}catch(e){}}if(id==='reg_review_guide'){try{renderRegLaw&&renderRegLaw('reg_review_guide')}catch(e){}}if(id==='reg_vigilance'){try{renderRegLaw&&renderRegLaw('reg_vigilance')}catch(e){}}if(id==='reg_rep'){try{renderRegLaw&&renderRegLaw('reg_rep')}catch(e){}}if(id==='pwds'){try{qcInitSettings&&qcInitSettings()}catch(e){}}updateBreadcrumb(id);renderWorkSection(id)};
+  showModule=function(id){origShowModule(id);if(id==='dashboard'){renderAggTodos();renderAlerts();renderLiveStats();renderWeekTodo();renderMdrStages();renderQuickGrid();try{renderDogBanner&&renderDogBanner()}catch(e){}}if(id==='study'){try{renderStudy&&renderStudy()}catch(e){console.error('study render error:',e)}}if(id==='risk_ledger'){try{rlRender&&rlRender()}catch(e){}}if(id==='risk_cases'){try{rcRender&&rcRender()}catch(e){}}if(id==='deviation'){try{devRender&&devRender()}catch(e){}}if(id==='qa_notes'){try{qnRender&&qnRender()}catch(e){}}if(id==='reg_registrar'){try{renderRegLaw&&renderRegLaw('reg_registrar');renderRegPractice&&renderRegPractice()}catch(e){}}if(id==='reg_review_guide'){try{renderRegLaw&&renderRegLaw('reg_review_guide')}catch(e){}}if(id==='reg_vigilance'){try{renderRegLaw&&renderRegLaw('reg_vigilance')}catch(e){}}if(id==='reg_rep'){try{renderRegLaw&&renderRegLaw('reg_rep')}catch(e){}}if(id==='pwds'){try{qcInitSettings&&qcInitSettings()}catch(e){}}updateBreadcrumb(id);renderWorkSection(id)};
 
   /* ========== 模块笔记（兼容搜索，数据迁移到页面内textarea） ========== */
   function getNote(id){
@@ -10171,6 +10171,13 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
     try{const s=JSON.parse(localStorage.getItem('qms_suppliers')||'[]');s.forEach(x=>{if(x.nextReview){const d1=new Date(x.nextReview+'T00:00:00'),d2=new Date(todayStr+'T00:00:00');if((d1-d2)/86400000<=30)supplierReview++}})}catch(e){}
     try{const tr=JSON.parse(localStorage.getItem('qms_trainings')||'[]');trainingDue=tr.filter(x=>x.status==='📝 计划中'||x.status==='🚀 进行中').length}catch(e){}
     box.innerHTML=`
+/* v32 livestats risk card */
+    let riskLedgerOpen=0,riskCaseOpen=0,devOpen=0;
+    try{const a=JSON.parse(localStorage.getItem('qms_risk_ledger')||'[]');riskLedgerOpen=a.filter(r=>r.status!=='done'&&r.status!=='abandon').length}catch(e){}
+    try{const a=JSON.parse(localStorage.getItem('qms_risk_cases')||'[]');riskCaseOpen=a.filter(r=>!r.status||r.status==='pending'||r.status==='fixing'||r.status==='comp'||r.status==='pause').length}catch(e){}
+    try{const a=JSON.parse(localStorage.getItem('qms_deviation_ledger')||'[]');devOpen=a.filter(r=>r.status!=='closed').length}catch(e){}
+    const riskDoing=riskLedgerOpen+riskCaseOpen+devOpen;
+
       <div class="stat-card live"><div class="stat-num">${myTodoCount}</div><div class="stat-label">我的待办</div><div class="stat-sub">本周+完整任务库</div></div>
       <div class="stat-card live warn"><div class="stat-num">${doneDeliv}/${totalDeliv}</div><div class="stat-label">MDR交付物</div><div class="stat-sub">我负责任务完成统计</div></div>
       <div class="stat-card live danger"><div class="stat-num">${alertCount}</div><div class="stat-label">合规预警</div><div class="stat-sub">CAPA逾期${capaOverdue}</div></div>
@@ -10178,9 +10185,42 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
       <div class="stat-card live" style="border-left:4px solid #7c3aed"><div class="stat-num">${rtPending>0?'<span style="color:#ea580c">'+rtPending+'</span>':rtTotal}</div><div class="stat-label">法规变更</div><div class="stat-sub">待处理${rtPending}·重大${rtMajor}</div></div>
       <div class="stat-card live" style="border-left:4px solid #f59e0b"><div class="stat-num">${mrTotal}</div><div class="stat-label">管理评审</div><div class="stat-sub">改进项${mrImprov}·跟踪中${mrImprovOpen}</div></div>
       <div class="stat-card live" style="border-left:4px solid #16a34a"><div class="stat-num">${auditOpen+supplierReview+trainingDue}</div><div class="stat-label">体系总览</div><div class="stat-sub">内审${auditOpen}</div></div>
+      <div class="stat-card live" style="border-left:4px solid #dc2626"><div class="stat-num">${riskDoing}</div><div class="stat-label">风险进行中</div><div class="stat-sub">识别${riskLedgerOpen}·案例${riskCaseOpen}·偏差${devOpen}</div></div>
     `;
   }
 
+  /* ========== 狗狗欢迎Banner 真实数据（v32） ========== */
+  function renderDogBanner(){
+    const box=document.getElementById('dogBannerStats');if(!box)return;
+    // 风险预警数（qms_alert_nodes 未完成）
+    let riskAlert=0;
+    try{const a=JSON.parse(localStorage.getItem('qms_alert_nodes')||'[]');riskAlert=a.filter(n=>n.status!=='已完成').length}catch(e){}
+    // 待办数（qms_todos + 本周待办未完成）
+    let todoCount=0;
+    try{const a=JSON.parse(localStorage.getItem('qms_todos')||'[]');todoCount+=a.filter(t=>!t.done).length}catch(e){}
+    try{const a=JSON.parse(localStorage.getItem('qms_week_todos')||'[]');todoCount+=a.filter(t=>!t.done).length}catch(e){}
+    // CAPA 未关闭
+    let capaOpen=0;
+    try{const a=JSON.parse(localStorage.getItem('qms_capas')||'[]');capaOpen=a.filter(c=>c.status!=='已关闭').length}catch(e){}
+    // 风险台账进行中（三台账未关闭合计）
+    let riskDoing=0;
+    try{const a=JSON.parse(localStorage.getItem('qms_risk_ledger')||'[]');riskDoing+=a.filter(r=>r.status!=='done'&&r.status!=='abandon').length}catch(e){}
+    try{const a=JSON.parse(localStorage.getItem('qms_risk_cases')||'[]');riskDoing+=a.filter(r=>!r.status||r.status==='pending'||r.status==='fixing'||r.status==='comp'||r.status==='pause').length}catch(e){}
+    try{const a=JSON.parse(localStorage.getItem('qms_deviation_ledger')||'[]');riskDoing+=a.filter(r=>r.status!=='closed').length}catch(e){}
+    const h=[];const d=new Date().getHours();
+    if(d<6)h.push('夜深了，还在加班吗？注意休息哦～');
+    else if(d<12)h.push('早安，今天也要元气满满哦～');
+    else if(d<14)h.push('中午好，记得按时吃饭～');
+    else if(d<18)h.push('下午好，继续加油～');
+    else if(d<22)h.push('晚上好，辛苦啦～');
+    else h.push('夜深了，早点休息～');
+    let html='<div style="font-size:15px;font-weight:700;color:var(--primary-dark);margin-bottom:6px"><i data-lucide="sun-medium" style="width:18px;height:18px;color:var(--lemon);stroke-width:2"></i> '+h[0]+'</div>';
+    html+='<div style="font-size:12px;color:var(--text-muted)">截止今日，有 <b style="color:var(--danger)">'+riskAlert+'</b> 项风险预警，<b style="color:var(--warning)">'+todoCount+'</b> 件待办待处理，<b style="color:var(--peach)">'+capaOpen+'</b> 项 CAPA 未关闭，<b style="color:var(--primary)">'+riskDoing+'</b> 项风险台账进行中。加油！🐾</div>';
+    box.innerHTML=html;
+    try{if(window.lucide&&lucide.createIcons)lucide.createIcons({root:box})}catch(e){}
+  }
+
+  /* ========== 本周待办 ========== */
   /* ========== 本周待办 ========== */
   function getWeekTodos(){
     try{return JSON.parse(localStorage.getItem('qms_week_todos')||'[]')}catch(e){return[]}
@@ -10610,82 +10650,216 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
           return cnt;
         }catch(e){return 0}
       }
+      // ===== v32 三台账角标 =====
+      if(id==='risk_ledger'){
+        try{
+          const a=JSON.parse(localStorage.getItem('qms_risk_ledger')||'[]');
+          return a.filter(r=>r.status!=='done'&&r.status!=='abandon').length;
+        }catch(e){return 0}
+      }
+      if(id==='risk_cases'){
+        try{
+          const a=JSON.parse(localStorage.getItem('qms_risk_cases')||'[]');
+          return a.filter(r=>r.status==='pending'||r.status==='fixing').length;
+        }catch(e){return 0}
+      }
+      if(id==='deviation'){
+        try{
+          const a=JSON.parse(localStorage.getItem('qms_deviation_ledger')||'[]');
+          return a.filter(r=>r.status!=='closed').length;
+        }catch(e){return 0}
+      }
     }catch(e){}
     return 0;
   }
-  window.renderQuickGrid=function(){
-    const grid=document.getElementById('quickGrid');if(!grid)return;
-    const defaultIds=defaultQuickCards.map(c=>c.id);
-    let saved=getQuickOrder();
-    let cards=saved?saved.filter(id=>defaultIds.includes(id)):[];
-    defaultIds.forEach(id=>{if(!cards.includes(id))cards.push(id)});
-    const cardMap={};defaultQuickCards.forEach(c=>cardMap[c.id]=c);
-    grid.innerHTML=cards.map(id=>{
-      const c=cardMap[id]||{icon:'❓',title:'未知'};
-      const badge=c.badge?getModuleBadge(id):0;
-      const badgeHtml=badge>0?`<span class="quick-badge">${badge}</span>`:'';
-      const handle=`<span class="qs-handle" onpointerdown="quickPDown(event,'${id}',this)" title="按住拖动排序">☰</span>`;
-      if(c.isExternal){
-        return `<a class="quick-card" data-id="${id}" href="${c.url}" target="_blank" rel="noopener">
-          ${badgeHtml}${handle}
-          <div class="qicon">${c.icon}</div>
-          <div class="qtitle">${c.title}</div>
-        </a>`;
+  /* ========== 快速入口 v32：自动镜像左侧导航（分组渲染） ========== */
+  (function(){
+    // 快速入口分组排除配置
+    var QUICK_EXCLUDE_SECS=['overview','portals','sitepwd']; // 概览/法规官网/页面访问密码
+    var QUICK_STUDY_ONLY=['study']; // 学习计划只保留第一个（仪表盘）
+    // 旧版（v4）平铺排序 -> v5 分组迁移
+    function migrateQuickOrder(){
+      var ver=localStorage.getItem('qms_quick_order_ver');
+      if(ver==='5')return;
+      var old=null;
+      try{old=JSON.parse(localStorage.getItem('qms_quick_order')||'null')}catch(e){}
+      if(old&&Array.isArray(old)&&old.length){
+        // 平铺顺序 -> 按导航分组重排（尽量保持旧相对顺序）
+        var map={};
+        old.forEach(function(id){map[id]=true});
+        localStorage.setItem('qms_quick_order_v2',JSON.stringify(map));
       }
-      const onclick=c.isFlowUs?`openFlowUs('home')`:`showModule('${id}')`;
-      return `<div class="quick-card" data-id="${id}" onclick="${onclick}">
-        ${badgeHtml}${handle}
-        <div class="qicon">${c.icon}</div>
-        <div class="qtitle">${c.title}</div>
-      </div>`;
-    }).join('');
-  }
-  let qDrag=null;
-  window.quickPDown=function(e,id,handle){
-    e.preventDefault();e.stopPropagation();
-    const el=handle.closest?handle.closest('.quick-card'):(handle.parentNode);
-    if(!el)return;
-    const rect=el.getBoundingClientRect();
-    qDrag={id:id,el:el,w:rect.width,h:rect.height};
-    el.classList.add('qs-dragging');
-    el.style.position='fixed';
-    el.style.left=(e.clientX-rect.width/2)+'px';
-    el.style.top=(e.clientY-rect.height/2)+'px';
-    el.style.width=rect.width+'px';
-    try{el.setPointerCapture&&el.setPointerCapture(e.pointerId)}catch(err){}
-    document.addEventListener('pointermove',quickPMove);
-    document.addEventListener('pointerup',quickPUp);
-  };
-  function quickPMove(e){
-    if(!qDrag)return;e.preventDefault();
-    const el=qDrag.el;
-    el.style.left=(e.clientX-qDrag.w/2)+'px';
-    el.style.top=(e.clientY-qDrag.h/2)+'px';
-    const target=document.elementFromPoint(e.clientX,e.clientY);
-    const tEl=target&&target.closest?target.closest('.quick-card'):null;
-    if(tEl&&tEl!==el&&tEl.dataset&&tEl.dataset.id){
-      const grid=document.getElementById('quickGrid');
-      const rect=tEl.getBoundingClientRect();
-      const after=(e.clientX-rect.left)>(rect.width/2);
-      if(after){if(tEl.nextSibling!==el)grid.insertBefore(el,tEl.nextSibling)}
-      else{if(tEl!==el.nextSibling)grid.insertBefore(el,tEl)}
+      localStorage.setItem('qms_quick_order_ver','5');
+      // 清理旧 key
+      try{localStorage.removeItem('qms_quick_order')}catch(e){}
     }
-  }
-  function quickPUp(e){
-    if(!qDrag)return;
-    document.removeEventListener('pointermove',quickPMove);
-    document.removeEventListener('pointerup',quickPUp);
-    const el=qDrag.el;
-    el.classList.remove('qs-dragging');
-    el.style.position='';el.style.left='';el.style.top='';el.style.width='';
-    const grid=document.getElementById('quickGrid');
-    const order=Array.from(grid.querySelectorAll('.quick-card')).map(c=>c.dataset&&c.dataset.id).filter(Boolean);
-    localStorage.setItem('qms_quick_order',JSON.stringify(order));
-    qDrag=null;
-    renderQuickGrid();
-  }
-
-
+    function getQuickGroupState(){
+      try{return JSON.parse(localStorage.getItem('qms_quick_groups')||'{}')}catch(e){return {}}
+    }
+    function setQuickGroupState(o){try{localStorage.setItem('qms_quick_groups',JSON.stringify(o))}catch(e){}}
+    // 读取导航分组（排除配置外）
+    function getNavSections(){
+      var secs=[];
+      document.querySelectorAll('.nav-section').forEach(function(sec){
+        var key=sec.getAttribute('data-sec');
+        if(!key)return;
+        if(QUICK_EXCLUDE_SECS.indexOf(key)>=0)return;
+        var titleEl=sec.querySelector('.nav-section-title');
+        var title=titleEl?titleEl.textContent.replace('▾','').replace('▸','').trim():key;
+        var items=[];
+        sec.querySelectorAll('.nav-item').forEach(function(item){
+          var target=item.getAttribute('data-target');
+          var href=item.getAttribute('href');
+          var text=item.textContent.replace(/\s+/g,' ').trim();
+          // 学习计划：只留第一个（仪表盘）
+          if(key==='study'&&items.length>0)return;
+          var icon='';
+          var iconEl=item.querySelector('[data-lucide]');
+          if(iconEl){
+            var iconName=iconEl.getAttribute('data-lucide')||'circle';
+            var color=iconEl.getAttribute('style')||'';
+            icon='<i data-lucide="'+iconName+'" style="width:26px;height:26px;'+color+';stroke-width:1.8"></i>';
+          }
+          var badge=target?getModuleBadge(target):0;
+          if(href&&!target){
+            items.push({id:'ext_'+encodeURIComponent(href),target:null,href:href,title:text,icon:icon,badge:false,isExternal:true});
+          }else if(target){
+            items.push({id:target,target:target,href:null,title:text,icon:icon,badge:badge>0?badge:false,isExternal:false});
+          }
+        });
+        if(items.length)secs.push({key:key,title:title,items:items});
+      });
+      return secs;
+    }
+    // 组内排序应用（从 qms_quick_order_v2 读）
+    function orderItems(sec){
+      var saved=null;
+      try{saved=JSON.parse(localStorage.getItem('qms_quick_order_v2')||'null')}catch(e){}
+      if(saved&&saved[sec.key]&&Array.isArray(saved[sec.key])){
+        var orderMap={};saved[sec.key].forEach(function(id,i){orderMap[id]=i});
+        var items=sec.items.slice();
+        items.sort(function(a,b){
+          var ia=orderMap[a.id],ib=orderMap[b.id];
+          if(ia===undefined&&ib===undefined)return 0;
+          if(ia===undefined)return 1;
+          if(ib===undefined)return -1;
+          return ia-ib;
+        });
+        return items;
+      }
+      return sec.items;
+    }
+    window.renderQuickGrid=function(){
+      var grid=document.getElementById('quickGrid');if(!grid)return;
+      migrateQuickOrder();
+      var secs=getNavSections();
+      var state=getQuickGroupState();
+      var allCollapsed=true;
+      secs.forEach(function(s){if(!state[s.key])allCollapsed=false});
+      var html='<div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:8px">'
+        +'<button onclick="toggleAllQuickSections()" style="padding:4px 12px;border:1px solid var(--border);border-radius:6px;background:#fff;cursor:pointer;font-size:11px;color:#64748b">'+(allCollapsed?'🔽 全部展开':'🔼 全部折叠')+'</button>'
+        +'</div>';
+      secs.forEach(function(sec,idx){
+        var collapsed=!!state[sec.key];
+        var items=orderItems(sec);
+        var colorIdx=idx%6;
+        var colors=['#4f46e5','#0ea5e9','#059669','#d97706','#dc2626','#7c3aed'];
+        var bar=colors[colorIdx];
+        html+='<div style="margin-bottom:14px">'
+          +'<div onclick="toggleQuickSection(\''+sec.key+'\')" style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:6px 4px;user-select:none">'
+          +'<span style="width:4px;height:14px;background:'+bar+';border-radius:2px;display:inline-block"></span>'
+          +'<span style="font-size:12px;font-weight:700;color:#334155">'+escQuick(sec.title)+'</span>'
+          +'<span style="font-size:11px;color:#94a3b8">('+items.length+')</span>'
+          +'<span style="margin-left:auto;font-size:11px;color:#94a3b8">'+(collapsed?'▸ 展开':'▾ 折叠')+'</span>'
+          +'</div>'
+          +(collapsed?'':'<div style="background:#f8fafc;border:1px solid #eef2f7;border-radius:10px;padding:10px" data-qsec="'+sec.key+'">'
+            +'<div class="quick-grid" style="gap:10px">'+items.map(function(c){
+              var badgeHtml=c.badge?`<span class="quick-badge">${c.badge}</span>`:'';
+              var handle=`<span class="qs-handle" onpointerdown="quickPDown(event,'${c.id}','${sec.key}',this)" title="按住拖动排序">☰</span>`;
+              var activeCls=(c.target&&c.target===currentQuickModule())?' quick-active':'';
+              if(c.isExternal){
+                return `<a class="quick-card${activeCls}" data-id="${c.id}" href="${c.href}" target="_blank" rel="noopener">${badgeHtml}${handle}<div class="qicon">${c.icon}</div><div class="qtitle">${escQuick(c.title)}</div></a>`;
+              }
+              return `<div class="quick-card${activeCls}" data-id="${c.id}" onclick="showModule('${c.target}')">${badgeHtml}${handle}<div class="qicon">${c.icon}</div><div class="qtitle">${escQuick(c.title)}</div></div>`;
+            }).join('')+'</div>'
+          +'</div>');
+      });
+      grid.innerHTML=html;
+      // lucide 图标渲染
+      try{if(window.lucide&&lucide.createIcons)lucide.createIcons({root:grid})}catch(e){}
+      // 拖拽完成后更新分组顺序存储
+    };
+    function currentQuickModule(){
+      try{
+        var active=document.querySelector('.nav-item.active');
+        return active?active.getAttribute('data-target'):'';
+      }catch(e){return ''}
+    }
+    function escQuick(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+    window.toggleQuickSection=function(key){
+      var st=getQuickGroupState();st[key]=!st[key];setQuickGroupState(st);renderQuickGrid();
+    };
+    window.toggleAllQuickSections=function(){
+      var st=getQuickGroupState();
+      var secs=getNavSections();
+      var allCollapsed=secs.every(function(s){return st[s.key]});
+      secs.forEach(function(s){st[s.key]=!allCollapsed});
+      setQuickGroupState(st);renderQuickGrid();
+    };
+    // 分组内拖拽：保存按组的顺序
+    function saveQuickGroupOrder(secKey){
+      var box=document.querySelector('[data-qsec="'+secKey+'"]');
+      if(!box)return;
+      var order=Array.from(box.querySelectorAll('.quick-card')).map(function(c){return c.getAttribute('data-id')}).filter(Boolean);
+      var saved={};
+      try{saved=JSON.parse(localStorage.getItem('qms_quick_order_v2')||'{}')}catch(e){saved={}}
+      saved[secKey]=order;
+      try{localStorage.setItem('qms_quick_order_v2',JSON.stringify(saved))}catch(e){}
+    }
+    window.quickPDown=function(e,id,secKey,handle){
+      e.preventDefault();e.stopPropagation();
+      var el=handle.closest?handle.closest('.quick-card'):(handle.parentNode);
+      if(!el)return;
+      var rect=el.getBoundingClientRect();
+      qDrag={id:id,secKey:secKey,el:el,w:rect.width,h:rect.height};
+      el.classList.add('qs-dragging');
+      el.style.position='fixed';
+      el.style.left=(e.clientX-rect.width/2)+'px';
+      el.style.top=(e.clientY-rect.height/2)+'px';
+      el.style.width=rect.width+'px';
+      try{el.setPointerCapture&&el.setPointerCapture(e.pointerId)}catch(err){}
+      document.addEventListener('pointermove',quickPMove);
+      document.addEventListener('pointerup',quickPUp);
+    };
+    function quickPMove(e){
+      if(!qDrag)return;e.preventDefault();
+      var el=qDrag.el;
+      el.style.left=(e.clientX-qDrag.w/2)+'px';
+      el.style.top=(e.clientY-qDrag.h/2)+'px';
+      var target=document.elementFromPoint(e.clientX,e.clientY);
+      var tEl=target&&target.closest?target.closest('.quick-card'):null;
+      if(tEl&&tEl!==el&&tEl.dataset&&tEl.dataset.id){
+        var grid=el.parentNode;
+        var rect=tEl.getBoundingClientRect();
+        var after=(e.clientX-rect.left)>(rect.width/2);
+        if(after){if(tEl.nextSibling!==el)grid.insertBefore(el,tEl.nextSibling)}
+        else{if(tEl!==el.nextSibling)grid.insertBefore(el,tEl)}
+      }
+    }
+    function quickPUp(e){
+      if(!qDrag)return;
+      document.removeEventListener('pointermove',quickPMove);
+      document.removeEventListener('pointerup',quickPUp);
+      var el=qDrag.el;
+      el.classList.remove('qs-dragging');
+      el.style.position='';el.style.left='';el.style.top='';el.style.width='';
+      saveQuickGroupOrder(qDrag.secKey);
+      qDrag=null;
+      renderQuickGrid();
+    }
+    var qDrag=null;
+  })();
+  
   /* ========== 全局搜索 ========== */
   function globalSearch(){
     const q=document.getElementById('globalSearchInput').value.trim().toLowerCase();
@@ -13390,7 +13564,7 @@ if('serviceWorker' in navigator){
 </div>
 <script>
 (function(){
-  var APP_VERSION='2026-08-19.31';
+  var APP_VERSION='2026-08-19.32';
   var STORAGE_KEY='qms_update_ignored_version';
   function qmsParseVersion(v){
     var m=(v||'').match(/^(\d{4}-\d{2}-\d{2})\.(\d+)$/);
