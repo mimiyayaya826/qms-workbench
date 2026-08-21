@@ -4231,9 +4231,14 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
     <h3><i data-lucide="clipboard-list" style="width:16px;height:16px;color:var(--primary);stroke-width:2"></i>审核记录台账 <span style="font-size:12px;font-weight:400;color:var(--text-muted)">（体考/机构审核/内审/飞行检查）</span></h3>
     <div id="auditTypeFilterBar" style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
       <label style="font-size:12px;color:var(--text-muted);font-weight:600">按类型筛选：</label>
-      <select id="auditTypeSel" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;min-width:180px">
+      <select id="auditTypeSel" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;min-width:160px">
         <option value="">全部类型</option>
       </select>
+      <label style="font-size:12px;color:var(--text-muted);font-weight:600;margin-left:6px">按单条审核：</label>
+      <select id="auditRecordSel" title="选择某一次具体审核，下方不符合项自动联动筛选" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;min-width:260px">
+        <option value="">全部审核记录</option>
+      </select>
+      <button type="button" onclick="clearAuditAllFilters()" title="一键清除所有筛选" style="padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:#fff;cursor:pointer;font-size:12px">🧹 清除筛选</button>
       <span id="auditTypeFilterMsg" style="font-size:12px;color:var(--primary)"></span>
     </div>
     <div id="auditFormBox" style="margin-bottom:14px"></div>
@@ -6114,6 +6119,14 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
   }
   function saveAuditLessons(arr){localStorage.setItem('qms_audit_lessons',JSON.stringify(arr))}
 
+  // --- 展开/折叠状态持久化（按用户选择记忆，存 localStorage，不动现有记录数据）---
+  const AUDIT_PREFS_KEY='qms_audit_prefs';
+  function getAuditPrefs(){try{return JSON.parse(localStorage.getItem(AUDIT_PREFS_KEY)||'{}')}catch(e){return {}}}
+  function getAuditPref(key,def){const p=getAuditPrefs();return Object.prototype.hasOwnProperty.call(p,key)?p[key]:def}
+  function setAuditPref(key,val){const p=getAuditPrefs();p[key]=val;localStorage.setItem(AUDIT_PREFS_KEY,JSON.stringify(p))}
+  // 新增审核记录临时标记：刚 addAuditRecord 的新记录ID，renderAuditList 时默认展开（仅本次 render 生效）
+  let __lastNewAuditRecId=null;
+
   // --- 审核统计 ---
   function renderAuditStats(){
     const box=document.getElementById('auditStats');if(!box)return;
@@ -6177,8 +6190,10 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
     const type=val('auType'),org=val('auOrg'),auditor=val('auAuditor'),date=val('auDate'),scope=val('auScope'),result=val('auResult'),notes=val('auNotes'),submit=val('auSubmit'),accept=val('auAccept');
     if(!date){toast('请选择审核日期');return}
     const recs=getAuditRecords();
-    recs.unshift({id:'ar'+Date.now(),type,org,auditor,date,submit,accept,scope,result,notes,created:Date.now()});
+    const newId='ar'+Date.now();
+    recs.unshift({id:newId,type,org,auditor,date,submit,accept,scope,result,notes,created:Date.now()});
     saveAuditRecords(recs);
+    __lastNewAuditRecId=newId;
     // 清空新增表单，方便连续录入
     ['auOrg','auAuditor','auDate','auSubmit','auAccept','auScope','auNotes'].forEach(function(id){const el=document.getElementById(id);if(el)el.value='';});
     renderAuditAll();
@@ -6220,6 +6235,7 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
     function rowHtml(r){
       const ncCount=getAuditNCs().filter(n=>n.auditId===r.id).length;
       const resultStyle=r.result==='通过'?'color:var(--success)':(r.result==='未通过'?'color:var(--danger)':(r.result==='有条件通过'?'color:var(--warning)':'color:var(--text-muted)'));
+      const detailExpanded=__lastNewAuditRecId===r.id || getAuditPref('ard_'+r.id,false);
       return `<tr>
         <td>${selHtml(r.id,'type',r.type,typeOpts,'')}</td>
         <td><input type="text" value="${escHtml(r.org||'')}" onblur="updateAuditField('${r.id}','org',this.value)" style="width:100%;padding:3px 5px;border:1px solid var(--border);border-radius:5px;font-size:12px"></td>
@@ -6231,17 +6247,18 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
         <td>${selHtml(r.id,'result',r.result,resultOpts,resultStyle)}</td>
         <td>
           <button onclick="toggleAuditDetail('${r.id}')" style="padding:2px 8px;border:1px solid var(--border);border-radius:5px;background:#fff;cursor:pointer;font-size:11px">详情</button>
+          <button onclick="applyAuditRecordFilter('${r.id}')" title="下方不符合项栏目自动筛选出这次审核的不符合项" style="padding:2px 8px;border:1px solid var(--primary);border-radius:5px;background:${auditRecordFilter===r.id?'var(--primary)':'#fff'};color:${auditRecordFilter===r.id?'#fff':'var(--primary)'};cursor:pointer;font-size:11px">🔗只看这条</button>
           <button onclick="deleteAuditRecord('${r.id}')" style="padding:2px 8px;border:1px solid var(--danger);border-radius:5px;background:#fff;color:var(--danger);cursor:pointer;font-size:11px">🗑</button>
         </td>
       </tr>
-      <tr id="auditDetail_${r.id}" style="display:none;background:var(--bg-light)">
+      <tr id="auditDetail_${r.id}" style="${detailExpanded?'':'display:none'}background:var(--bg-light)">
         <td colspan="9" style="padding:10px 14px">
           <div style="margin-bottom:6px"><strong>备注（可编辑）：</strong><textarea onblur="updateAuditField('${r.id}','notes',this.value)" style="width:100%;min-height:50px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;resize:vertical">${escHtml(r.notes||'')}</textarea></div>
-          <div><strong>关联不符合项：</strong>${ncCount>0?ncCount+'个':'<span style="color:var(--text-muted)">无</span>'}</div>
+          <div><strong>关联不符合项：</strong>${ncCount>0?`<a href="javascript:void(0)" onclick="applyAuditRecordFilter('${r.id}')" style="color:var(--primary);text-decoration:underline;font-weight:600" title="点击筛选，下方只看这次审核的不符合项">${ncCount}个</a>`:'<span style="color:var(--text-muted)">无</span>'}</div>
         </td>
       </tr>`;
     }
-    // ===== 按"审核类型"自动分组，每组独立可折叠 =====
+    // ===== 按"审核类型"自动分组，每组独立可折叠（偏好记忆 + 默认全关）=====
     const groups={};
     sorted.forEach(r=>{(groups[r.type]=groups[r.type]||[]).push(r);});
     const typeNames=Object.keys(groups).sort();
@@ -6257,10 +6274,14 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
       +'<th style="padding:8px 6px;border-bottom:1px solid var(--border);text-align:left;font-weight:700;color:#1e40af">操作</th>'
       +'</tr></thead>';
     let html='';
-    typeNames.forEach((t,gi)=>{
+    typeNames.forEach(t=>{
       const items=groups[t];
       const body=items.map(rowHtml).join('');
-      html+=`<details class="audit-group" ${gi===0?'open':''} style="border:1px solid var(--border);border-radius:8px;margin-bottom:10px;overflow:hidden;background:#fff">
+      const grpOpen=getAuditPref('ag_'+t,false);
+      // 如果有新增的记录在这个组里，默认强制展开组（方便用户找到新记录）
+      const needExpandByNew = __lastNewAuditRecId && items.some(x=>x.id===__lastNewAuditRecId);
+      const actualOpen = needExpandByNew ? true : grpOpen;
+      html+=`<details class="audit-group" data-group-type="${escHtml(t)}" ${actualOpen?'open':''} style="border:1px solid var(--border);border-radius:8px;margin-bottom:10px;overflow:hidden;background:#fff">
         <summary style="cursor:pointer;padding:10px 14px;background:var(--bg-light);font-size:13px;font-weight:700;color:var(--primary-dark);display:flex;align-items:center;gap:8px">
           <span style="transition:transform .15s" class="ag-chev">▾</span>
           <span>📂 ${escHtml(t)}</span>
@@ -6271,25 +6292,49 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
       </details>`;
     });
     box.innerHTML=html;
+    // 绑定 details 的 toggle 事件（展开/折叠后保存偏好）
+    try{
+      box.querySelectorAll('details.audit-group').forEach(function(det){
+        det.addEventListener('toggle',function(){
+          const t=this.getAttribute('data-group-type');
+          if(t){setAuditPref('ag_'+t,this.open?true:false)}
+        });
+      });
+    }catch(_e_){}
   }
   function updateAuditRecordDate(id,val){
     updateAuditField(id,'date',val);
   }
   function toggleAuditDetail(id){
     const el=document.getElementById('auditDetail_'+id);
-    if(el)el.style.display=el.style.display==='none'?'':'none';
+    if(!el)return;
+    const nowHidden=el.style.display==='none';
+    el.style.display=nowHidden?'':'none';
+    // 保存单条审核记录详情行的偏好（展开=true / 折叠=false）
+    try{setAuditPref('ard_'+id,nowHidden?true:false)}catch(_e_){}
   }
 
   // --- 不符合项与整改 ---
   function renderNcForm(){
     const box=document.getElementById('ncFormBox');if(!box)return;
     let recs=getAuditRecords();
+    // 有具体审核筛选时，始终包含被锁定的那条（即使类型筛选排除了它，也不能漏）
     if(auditTypeFilter){recs=recs.filter(r=>r.type===auditTypeFilter);}
-    const recOpts=recs.length>0?recs.map(r=>`<option value="${r.id}">${r.date} ${r.type}（${r.org||'—'}）</option>`).join(''):'<option value="">'+(auditTypeFilter?'当前筛选类型下暂无审核记录，请先清除筛选或先添加对应类型审核':'请先添加审核记录')+'</option>';
+    if(auditRecordFilter){
+      const locked=getAuditRecords().find(r=>r.id===auditRecordFilter);
+      if(locked && !recs.some(x=>x.id===locked.id)){recs=[locked,...recs];}
+    }
+    // 默认选中：优先锁定当前具体审核记录
+    const selDefault=auditRecordFilter||'';
+    const selLocked=!!auditRecordFilter;
+    const recOpts=recs.length>0?recs.map(r=>`<option value="${r.id}"${r.id===selDefault?' selected':''}>${escHtml(r.date||'')} ${escHtml(r.type||'')}（${escHtml(r.org||'—')}）</option>`).join('')
+      :'<option value="">'+(auditTypeFilter?'当前筛选类型下暂无审核记录，请先清除筛选或先添加对应类型审核':'请先添加审核记录')+'</option>';
+    const disabledAttr=selLocked?' disabled style="width:100%;padding:6px 8px;border:1px solid var(--primary);border-radius:6px;font-size:12px;background:#eff6ff;color:var(--primary-dark);cursor:not-allowed"':' style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px"';
+    const lockHint=selLocked?' <span title="已在上方锁定本次审核，新增的不符合项自动关联到该审核" style="color:var(--primary);font-weight:600">🔒已锁定</span>':'';
     box.innerHTML=`<details style="border:1px solid var(--border);border-radius:8px;padding:0;background:var(--bg-light)">
       <summary style="padding:10px 14px;cursor:pointer;font-size:13px;font-weight:600;color:var(--primary-dark)">➕ 新增不符合项</summary>
       <div style="padding:12px 14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
-        <div><label style="font-size:11px;color:var(--text-muted)">关联审核记录</label><select id="ncAuditId" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px">${recOpts}</select></div>
+        <div><label style="font-size:11px;color:var(--text-muted)">关联审核记录${lockHint}</label><select id="ncAuditId"${disabledAttr}>${recOpts}</select>${selLocked?'<input type="hidden" id="ncAuditIdHidden" value="'+escAttr(auditRecordFilter)+'">':''}</div>
         <div><label style="font-size:11px;color:var(--text-muted)">不符合等级</label>
           <select id="ncLevel" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px">
             <option value="严重">🔴 严重（影响产品安全/体系有效性）</option>
@@ -6301,12 +6346,15 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
         <div style="grid-column:1/-1"><label style="font-size:11px;color:var(--text-muted)">不符合描述</label><textarea id="ncDesc" placeholder="详细描述审核发现的不符合情况..." style="width:100%;min-height:50px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;resize:vertical"></textarea></div>
         <div style="grid-column:1/-1"><label style="font-size:11px;color:var(--text-muted)">根本原因分析</label><textarea id="ncRoot" placeholder="用5Why/鱼骨图等方法分析根本原因..." style="width:100%;min-height:50px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;resize:vertical"></textarea></div>
         <div style="grid-column:1/-1"><label style="font-size:11px;color:var(--text-muted)">整改措施</label><textarea id="ncCorrective" placeholder="纠正+纠正措施（消除根本原因）..." style="width:100%;min-height:50px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;resize:vertical"></textarea></div>
-        <div style="grid-column:1/-1"><button onclick="addNC()" style="padding:8px 20px;background:var(--primary);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500">💾 保存不符合项</button></div>
+        <div style="grid-column:1/-1"><button type="button" onclick="addNC()" style="padding:8px 20px;background:var(--primary);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500">💾 保存不符合项</button></div>
       </div>
     </details>`;
   }
   function addNC(){
-    const auditId=val('ncAuditId'),level=val('ncLevel'),clause=val('ncClause'),desc=val('ncDesc'),root=val('ncRoot'),corrective=val('ncCorrective'),due=val('ncDue');
+    // 锁定时用 hidden 值，防止 disabled select 取不到
+    const auditIdHidden=document.getElementById('ncAuditIdHidden');
+    const auditId=auditIdHidden?auditIdHidden.value:val('ncAuditId');
+    const level=val('ncLevel'),clause=val('ncClause'),desc=val('ncDesc'),root=val('ncRoot'),corrective=val('ncCorrective'),due=val('ncDue');
     if(!auditId){toast('请先在上方添加审核记录并关联');return}
     if(!desc){toast('请填写不符合描述');return}
     const ncs=getAuditNCs();
@@ -6333,51 +6381,95 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
     const box=document.getElementById('ncList');if(!box)return;
     const allNcs=getAuditNCs();const recs=getAuditRecords();
     let ncs=allNcs;
-    if(auditTypeFilter){
+    // 优先级：先按具体审核记录筛选（需求10），再按类型筛选兜底
+    if(auditRecordFilter){
+      ncs=allNcs.filter(n=>n.auditId===auditRecordFilter);
+    }else if(auditTypeFilter){
       const ids=new Set(recs.filter(r=>r.type===auditTypeFilter).map(r=>r.id));
       ncs=allNcs.filter(n=>ids.has(n.auditId));
     }
-    if(ncs.length===0){box.innerHTML='<div style="padding:20px;text-align:center;color:var(--text-muted)">'+(auditTypeFilter?'该类型关联审核下暂无不符合项记录':'暂无不符合项记录')+'</div>';return}
+    let emptyHint='暂无不符合项记录';
+    if(auditRecordFilter){const r=recs.find(x=>x.id===auditRecordFilter);emptyHint='本次审核「'+(r?_auditLabel(r):'—')+'」暂无不符合项，做得漂亮 ✨';}
+    else if(auditTypeFilter){emptyHint='该类型关联审核下暂无不符合项记录';}
+    if(ncs.length===0){box.innerHTML='<div style="padding:20px;text-align:center;color:var(--text-muted)">'+emptyHint+'</div>';return}
     const today=new Date();today.setHours(0,0,0,0);
+    // 可选项
+    const LEVEL_OPTS=[['严重','🔴 严重（影响产品安全/体系有效性）'],['一般','🟡 一般（不符合条款但风险可控）'],['观察项','🔵 观察项（建议改进）']];
+    const STATUS_OPTS=[['open','待整改'],['progress','整改中'],['closed','已关闭']];
+    const recMap={};recs.forEach(r=>{recMap[r.id]=r;});
+    const recOptsAll=recs.length>0?recs.map(r=>`<option value="${r.id}">${escHtml(r.date||'')} ${escHtml(r.type||'')}（${escHtml(r.org||'—')}）</option>`).join(''):'';
     function rowHtml(n){
-      const rec=recs.find(r=>r.id===n.auditId);
+      const rec=recMap[n.auditId];
       const levelCls=n.level==='严重'?'background:#fef2f2;color:var(--danger)':(n.level==='一般'?'background:#fefce8;color:var(--warning)':'background:#eff6ff;color:var(--primary)');
       const dueOverdue=n.due&&n.status!=='closed'&&new Date(n.due)<today;
-      const statusOpts=`<select onchange="updateNCField('${n.id}','status',this.value)" style="padding:3px 6px;border:1px solid var(--border);border-radius:5px;font-size:11px;background:#fff">
-        <option value="open" ${n.status==='open'?'selected':''}>待整改</option>
-        <option value="progress" ${n.status==='progress'?'selected':''}>整改中</option>
-        <option value="closed" ${n.status==='closed'?'selected':''}>已关闭</option>
-      </select>`;
+      const statusOpts=`<select onchange="updateNCField('${n.id}','status',this.value)" style="padding:3px 6px;border:1px solid var(--border);border-radius:5px;font-size:11px;background:#fff">`
+        +STATUS_OPTS.map(s=>`<option value="${s[0]}" ${n.status===s[0]?'selected':''}>${s[1]}</option>`).join('')
+        +`</select>`;
+      const detailOpen=getAuditPref('nd_'+n.id,false);
       return `<tr>
-        <td><span style="padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;${levelCls}">${n.level}</span></td>
-        <td style="font-size:11px">${rec?`${rec.date}<br>${escHtml(rec.type)}`:'<span style="color:var(--text-muted)">未关联</span>'}</td>
+        <td><span style="padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;${levelCls}">${escHtml(n.level)}</span></td>
+        <td style="font-size:11px">${rec?`${escHtml(rec.date)}<br>${escHtml(rec.type)}`:'<span style="color:var(--text-muted)">未关联</span>'}</td>
         <td style="font-size:11px">${escHtml(n.clause||'—')}</td>
         <td style="font-size:11px;max-width:180px">${escHtml(n.desc)}</td>
         <td style="font-size:11px;max-width:180px">${escHtml(n.corrective||'—')}</td>
-        <td style="font-size:11px;${dueOverdue?'color:var(--danger);font-weight:600':''}">${n.due||'—'}${dueOverdue?'<br>⚠逾期':''}</td>
+        <td style="font-size:11px;${dueOverdue?'color:var(--danger);font-weight:600':''}">${escHtml(n.due||'—')}${dueOverdue?'<br>⚠逾期':''}</td>
         <td>${statusOpts}</td>
-        <td style="font-size:11px">${n.status==='closed'?`✓ ${n.verifyDate||''}`:'—'}</td>
+        <td style="font-size:11px">${n.status==='closed'?`✓ ${escHtml(n.verifyDate||'')}`:'—'}</td>
         <td>
-          <button onclick="toggleNcDetail('${n.id}')" style="padding:2px 8px;border:1px solid var(--border);border-radius:5px;background:#fff;cursor:pointer;font-size:11px">详情</button>
+          <button onclick="toggleNcDetail('${n.id}')" style="padding:2px 8px;border:1px solid var(--border);border-radius:5px;background:#fff;cursor:pointer;font-size:11px">详情/编辑</button>
           <button onclick="deleteNC('${n.id}')" style="padding:2px 8px;border:1px solid var(--danger);border-radius:5px;background:#fff;color:var(--danger);cursor:pointer;font-size:11px">🗑</button>
         </td>
       </tr>
-      <tr id="ncDetail_${n.id}" style="display:none;background:var(--bg-light)">
-        <td colspan="9" style="padding:10px 14px">
-          <div style="margin-bottom:6px"><strong>根本原因分析：</strong>${escHtml(n.root)||'<span style="color:var(--text-muted)">未填写</span>'}</div>
-          ${n.status==='closed'?`<div style="margin-bottom:6px"><strong>验证日期：</strong>${n.verifyDate||'—'}</div>
-          <div><strong>验证结果：</strong>${escHtml(n.verifyResult)||'—'}</div>`:
-          `<div style="margin-top:8px">
-            <label style="font-size:11px;color:var(--text-muted)">整改验证结果（关闭时填写）：</label>
-            <input type="text" placeholder="如：现场已复核，整改有效，CAPA闭环" onblur="updateNCField('${n.id}','verifyResult',this.value)" value="${escHtml(n.verifyResult||'')}" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;margin-top:4px">
-          </div>`}
+      <tr id="ncDetail_${n.id}" style="${detailOpen?'':'display:none'}background:var(--bg-light)">
+        <td colspan="9" style="padding:12px 14px">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px 14px">
+            <div><label style="display:block;font-size:11px;font-weight:700;color:#0c4a6e;margin-bottom:4px">关联审核记录 <span style="color:#64748b;font-weight:400">（可改）</span></label>
+              <select onchange="updateNCField('${n.id}','auditId',this.value)" style="width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:5px;font-size:12px;background:#fff">
+                ${rec?`<option value="${escAttr(n.auditId)}" selected>${escHtml((rec.date||'')+' '+(rec.type||'')+'（'+(rec.org||'—')+'）')}</option>`:''}
+                ${recOptsAll}
+              </select>
+            </div>
+            <div><label style="display:block;font-size:11px;font-weight:700;color:#0c4a6e;margin-bottom:4px">不符合等级 <span style="color:#64748b;font-weight:400">（可改）</span></label>
+              <select onchange="updateNCField('${n.id}','level',this.value)" style="width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:5px;font-size:12px;background:#fff">
+                ${LEVEL_OPTS.map(o=>`<option value="${o[0]}" ${n.level===o[0]?'selected':''}>${o[1]}</option>`).join('')}
+              </select>
+            </div>
+            <div><label style="display:block;font-size:11px;font-weight:700;color:#0c4a6e;margin-bottom:4px">不符合条款 <span style="color:#64748b;font-weight:400">（可改）</span></label>
+              <input type="text" value="${escHtml(n.clause||'')}" onblur="updateNCField('${n.id}','clause',this.value)" placeholder="如：MDR Art.10(9) / GMP §35" style="width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:5px;font-size:12px">
+            </div>
+            <div><label style="display:block;font-size:11px;font-weight:700;color:#0c4a6e;margin-bottom:4px">整改期限 <span style="color:#64748b;font-weight:400">（可改）</span></label>
+              <input type="date" value="${escHtml(n.due||'')}" onchange="updateNCField('${n.id}','due',this.value)" style="width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:5px;font-size:12px">
+            </div>
+            <div style="grid-column:1/-1"><label style="display:block;font-size:11px;font-weight:700;color:#0c4a6e;margin-bottom:4px">不符合事实描述 <span style="color:#64748b;font-weight:400">（可改，原来只能改时间现在全开放）</span></label>
+              <textarea onblur="updateNCField('${n.id}','desc',this.value)" placeholder="详细描述不符合事实、证据、受审部门..." style="width:100%;min-height:60px;padding:6px 8px;border:1px solid var(--border);border-radius:5px;font-size:12px;resize:vertical">${escHtml(n.desc||'')}</textarea>
+            </div>
+            <div style="grid-column:1/-1"><label style="display:block;font-size:11px;font-weight:700;color:#0c4a6e;margin-bottom:4px">根本原因分析 <span style="color:#64748b;font-weight:400">（可改）</span></label>
+              <textarea onblur="updateNCField('${n.id}','root',this.value)" placeholder="用 5 Why / 鱼骨图 分析根本原因..." style="width:100%;min-height:60px;padding:6px 8px;border:1px solid var(--border);border-radius:5px;font-size:12px;resize:vertical">${escHtml(n.root||'')}</textarea>
+            </div>
+            <div style="grid-column:1/-1"><label style="display:block;font-size:11px;font-weight:700;color:#0c4a6e;margin-bottom:4px">整改措施（纠正+纠正措施） <span style="color:#64748b;font-weight:400">（可改）</span></label>
+              <textarea onblur="updateNCField('${n.id}','corrective',this.value)" placeholder="即时纠正（消除当前问题）+ 纠正措施（消除根本原因，防再发）+ 预防措施横向展开..." style="width:100%;min-height:70px;padding:6px 8px;border:1px solid var(--border);border-radius:5px;font-size:12px;resize:vertical">${escHtml(n.corrective||'')}</textarea>
+            </div>
+            <div style="grid-column:1/-1;border-top:1px dashed var(--border);margin-top:6px;padding-top:10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px 14px">
+              <div><label style="display:block;font-size:11px;font-weight:700;color:#0c4a6e;margin-bottom:4px">状态 <span style="color:#64748b;font-weight:400">（可改）</span></label>
+                <select onchange="updateNCField('${n.id}','status',this.value)" style="width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:5px;font-size:12px;background:#fff">
+                  ${STATUS_OPTS.map(o=>`<option value="${o[0]}" ${n.status===o[0]?'selected':''}>${o[1]}</option>`).join('')}
+                </select>
+              </div>
+              <div><label style="display:block;font-size:11px;font-weight:700;color:#0c4a6e;margin-bottom:4px">验证日期 <span style="color:#64748b;font-weight:400">（可改，关闭必填）</span></label>
+                <input type="date" value="${escHtml(n.verifyDate||'')}" onchange="updateNCField('${n.id}','verifyDate',this.value)" style="width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:5px;font-size:12px">
+              </div>
+              <div style="grid-column:1/-1"><label style="display:block;font-size:11px;font-weight:700;color:#0c4a6e;margin-bottom:4px">验证结果（关闭时填写） <span style="color:#64748b;font-weight:400">（可改）</span></label>
+                <textarea onblur="updateNCField('${n.id}','verifyResult',this.value)" placeholder="如：现场复核证据充分，纠正措施有效，CAPA 闭环；建议 3 个月后管理评审跟踪。" style="width:100%;min-height:70px;padding:6px 8px;border:1px solid var(--border);border-radius:5px;font-size:12px;resize:vertical">${escHtml(n.verifyResult||'')}</textarea>
+              </div>
+            </div>
+          </div>
         </td>
       </tr>`;
     }
-    // ===== 按"关联审核"自动分组，每组独立可折叠 =====
+    // ===== 按"关联审核"自动分组，每组独立可折叠（偏好记忆 + 默认全关）=====
     const groups={};
     ncs.forEach(n=>{
-      const rec=recs.find(r=>r.id===n.auditId);
+      const rec=recMap[n.auditId];
       const key=rec?`${rec.date}｜${rec.type}（${rec.org||'—'}）`:'未关联审核';
       (groups[key]=groups[key]||[]).push(n);
     });
@@ -6394,11 +6486,12 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
       +'<th style="padding:8px 6px;border-bottom:1px solid var(--border);text-align:left;font-weight:700;color:#b45309">操作</th>'
       +'</tr></thead>';
     let html='';
-    keys.forEach((k,gi)=>{
+    keys.forEach(k=>{
       const items=groups[k];
       const c=items.filter(n=>n.status==='closed').length;
       const body=items.map(rowHtml).join('');
-      html+=`<details class="nc-group" ${gi===0?'open':''} style="border:1px solid var(--border);border-radius:8px;margin-bottom:10px;overflow:hidden;background:#fff">
+      const grpOpen=getAuditPref('ng_'+k,false);
+      html+=`<details class="nc-group" data-group-key="${escHtml(k)}" ${grpOpen?'open':''} style="border:1px solid var(--border);border-radius:8px;margin-bottom:10px;overflow:hidden;background:#fff">
         <summary style="cursor:pointer;padding:10px 14px;background:var(--bg-light);font-size:13px;font-weight:700;color:var(--primary-dark);display:flex;align-items:center;gap:8px">
           <span style="transition:transform .15s" class="ng-chev">▾</span>
           <span>🔗 ${escHtml(k)}</span>
@@ -6410,10 +6503,21 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
       </details>`;
     });
     box.innerHTML=html;
+    // 绑定 nc-group details toggle 事件保存偏好
+    try{
+      box.querySelectorAll('details.nc-group').forEach(function(det){
+        det.addEventListener('toggle',function(){
+          const k=this.getAttribute('data-group-key');
+          if(k){setAuditPref('ng_'+k,this.open?true:false)}
+        });
+      });
+    }catch(_e_){}
   }
   function toggleNcDetail(id){
-    const el=document.getElementById('ncDetail_'+id);
-    if(el)el.style.display=el.style.display==='none'?'':'none';
+    const el=document.getElementById('ncDetail_'+id);if(!el)return;
+    const nowHidden=el.style.display==='none';
+    el.style.display=nowHidden?'':'none';
+    try{setAuditPref('nd_'+id,nowHidden?true:false)}catch(_e_){}
   }
 
   // --- 审核经验库 ---
@@ -6511,21 +6615,83 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
   }
   window.toggleLesson=toggleLesson;
 
-  // ===== 审核经验库：类型筛选 + 联动 + 卡片折叠 =====
+  // ===== 审核经验库：类型筛选 + 具体审核记录筛选 + 联动 + 卡片折叠 =====
   let auditTypeFilter='';
+  let auditRecordFilter='';  // 单条审核记录ID筛选（需求10：选某次体考→下方不符合项自动联动）
+  function _auditLabel(r){return (r.date||'无日期')+'｜'+(r.type||'未分类')+'（'+(r.org||'—')+'）';}
   function renderAuditTypeFilter(){
-    const sel=document.getElementById('auditTypeSel');if(!sel)return;
-    const types=[...new Set(getAuditRecords().map(r=>r.type).filter(Boolean))].sort();
-    sel.innerHTML='<option value="">全部类型</option>'+types.map(t=>`<option value="${escHtml(t)}"${t===auditTypeFilter?' selected':''}>${escHtml(t)}</option>`).join('');
-    sel.onchange=function(){applyAuditTypeFilter(this.value);};
-    const msg=document.getElementById('auditTypeFilterMsg');
-    if(msg)msg.textContent=auditTypeFilter?('当前筛选：'+auditTypeFilter):'';
+    // (1) 类型筛选下拉
+    const sel=document.getElementById('auditTypeSel');if(sel){
+      const types=[...new Set(getAuditRecords().map(r=>r.type).filter(Boolean))].sort();
+      sel.innerHTML='<option value="">全部类型</option>'+types.map(t=>`<option value="${escHtml(t)}"${t===auditTypeFilter?' selected':''}>${escHtml(t)}</option>`).join('');
+      sel.onchange=function(){
+        // 切类型时，如果当前具体审核记录不属于该类型，自动清空具体记录筛选
+        if(this.value && auditRecordFilter){
+          const r=getAuditRecords().find(x=>x.id===auditRecordFilter);
+          if(!r || r.type!==this.value){auditRecordFilter='';}
+        }
+        auditTypeFilter=this.value;
+        renderAuditTypeFilter();renderAuditList();renderNcForm();renderNcList();renderLessonList();
+        updateAuditHints();
+      };
+    }
+    // (2) 具体审核记录下拉（需求10：筛选某次审核→下方不符合项自动联动）
+    const rsel=document.getElementById('auditRecordSel');if(rsel){
+      let recs=getAuditRecords();
+      if(auditTypeFilter){recs=recs.filter(r=>r.type===auditTypeFilter);}
+      // 按审核日期倒序排列，方便选择最近的一次
+      const sorted=[...recs].sort((a,b)=>{const da=a.date||'',db=b.date||'';if(!da)return 1;if(!db)return -1;return db.localeCompare(da);});
+      rsel.innerHTML='<option value="">全部审核记录</option>'+sorted.map(r=>`<option value="${escAttr(r.id)}"${r.id===auditRecordFilter?' selected':''}>${escHtml(_auditLabel(r))}</option>`).join('');
+      rsel.onchange=function(){applyAuditRecordFilter(this.value);};
+    }
+    // (3) 当前筛选状态提示
+    const msg=document.getElementById('auditTypeFilterMsg');if(msg){
+      const parts=[];
+      if(auditTypeFilter)parts.push('类型：'+auditTypeFilter);
+      if(auditRecordFilter){
+        const r=getAuditRecords().find(x=>x.id===auditRecordFilter);
+        if(r)parts.push('单条：'+_auditLabel(r));
+      }
+      msg.textContent=parts.length>0?('🧭 当前筛选：'+parts.join(' ／ ')):'';
+    }
   }
+  window.clearAuditAllFilters=function(){
+    try{
+      auditTypeFilter='';auditRecordFilter='';
+      renderAuditTypeFilter();renderAuditList();renderNcForm();renderNcList();renderLessonList();
+      updateAuditHints();
+    }catch(e){try{renderAuditAll()}catch(_){}}
+  };
+  function applyAuditRecordFilter(val){
+    auditRecordFilter=val||'';
+    // 如果选中了某条具体审核，自动把类型筛选同步到该审核的类型（让列表也只显示这条，视觉更连贯）
+    if(auditRecordFilter){
+      const r=getAuditRecords().find(x=>x.id===auditRecordFilter);
+      if(r && r.type){auditTypeFilter=r.type;}
+    }
+    renderAuditTypeFilter();renderAuditList();renderNcForm();renderNcList();renderLessonList();
+    updateAuditHints();
+  }
+  window.applyAuditRecordFilter=applyAuditRecordFilter;
   function applyAuditTypeFilter(val){
     auditTypeFilter=val||'';
-    renderAuditList();renderNcForm();renderNcList();renderLessonList();
+    // 切类型时清空具体记录筛选，避免留着不属于该类型的旧ID
+    auditRecordFilter='';
+    renderAuditTypeFilter();renderAuditList();renderNcForm();renderNcList();renderLessonList();
+    updateAuditHints();
+  }
+  function updateAuditHints(){
     const nh=document.getElementById('ncSyncHint');
-    if(nh)nh.textContent=auditTypeFilter?('已随上方审核类型筛选「'+auditTypeFilter+'」同步过滤关联审核'):'（显示全部，未设置审核类型筛选）';
+    if(nh){
+      if(auditRecordFilter){
+        const r=getAuditRecords().find(x=>x.id===auditRecordFilter);
+        nh.innerHTML=r?('🔗 <strong style="color:var(--primary)">已锁定本次审核：</strong>'+escHtml(_auditLabel(r))+' · 下方不符合项只显示本次审核关联项 &nbsp; <a href="javascript:void(0)" onclick="clearAuditAllFilters()" style="color:var(--primary);text-decoration:underline;font-size:11px">清除锁定</a>'):'（显示全部，未设置审核筛选）';
+      }else if(auditTypeFilter){
+        nh.textContent='已随上方审核类型筛选「'+auditTypeFilter+'」同步过滤关联审核';
+      }else{
+        nh.textContent='（显示全部，未设置审核筛选）';
+      }
+    }
     const lh=document.getElementById('lessonSyncHint');
     if(lh)lh.textContent=auditTypeFilter?('已随上方审核类型筛选「'+auditTypeFilter+'」同步筛选经验'):'（显示全部，未设置审核类型筛选）';
   }
