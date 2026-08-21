@@ -13166,20 +13166,15 @@ renderPwds();
   function sortTodos(list){
     const priOrder={'high':0,'medium':1,'low':2};
     return list.slice().sort(function(a,b){
-      // 已完成排最后
       if(a.done!==b.done)return a.done?1:-1;
-      // 无计划日期排最前（仅未完成）
       if(!a.done){
         const aNo=!a.planDate,bNo=!b.planDate;
         if(aNo!==bNo)return aNo?-1:1;
       }
-      // 按计划日期升序
       if(a.planDate&&b.planDate&&a.planDate!==b.planDate)return a.planDate<b.planDate?-1:1;
-      // 按优先级
       const pa=priOrder[a.priority]!==undefined?priOrder[a.priority]:1;
       const pb=priOrder[b.priority]!==undefined?priOrder[b.priority]:1;
       if(pa!==pb)return pa-pb;
-      // 按创建时间
       return (a.createdAt||0)-(b.createdAt||0);
     });
   }
@@ -13192,35 +13187,80 @@ renderPwds();
     const doneStyle=t.done?'color:#94a3b8;text-decoration:line-through':'';
     const bg=t.done?'#f8fafc':(overdue?'#fef2f2':'#fff');
     const border=overdue?'1px solid #fecaca':'1px solid #e2e8f0';
-    let html='<div draggable="true" data-todo-id="'+t.id+'" class="todo-drag-item" style="padding:8px 10px;margin-bottom:6px;border-radius:8px;background:'+bg+';border:'+border+';cursor:grab">';
-    html+='<div style="display:flex;align-items:flex-start;gap:8px">';
-    html+='<input type="checkbox" '+(t.done?'checked':'')+' onchange="studyToggleTodo(\''+t.id+'\')" style="width:16px;height:16px;margin-top:2px;flex-shrink:0">';
+    let html='<div draggable="true" data-todo-id="'+t.id+'" class="todo-drag-item" style="padding:6px 8px;margin-bottom:4px;border-radius:6px;background:'+bg+';border:'+border+';cursor:grab;font-size:11px">';
+    html+='<div style="display:flex;align-items:flex-start;gap:6px">';
+    html+='<input type="checkbox" '+(t.done?'checked':'')+' onchange="studyToggleTodo(\''+t.id+'\')" style="width:14px;height:14px;margin-top:1px;flex-shrink:0">';
     html+='<div style="flex:1;min-width:0">';
-    html+='<div style="font-size:12px;font-weight:600;'+doneStyle+'">'+(priMap[t.priority]||'🟡')+' '+escHtml(t.title)+'</div>';
-    html+='<div style="font-size:10px;color:#64748b;margin-top:2px;display:flex;gap:8px;flex-wrap:wrap">';
-    if(g)html+='<span>🎯 '+escHtml(g.name)+'</span>';
-    if(s)html+='<span>📖 '+escHtml(s.name)+'</span>';
-    if(t.planDate)html+='<span style="color:'+(t.planDate===ts?'#0369a1':'#64748b')+'">📅 '+t.planDate+(t.planDate===ts?' (今天)':'')+'</span>';
-    if(t.dueDate)html+='<span style="'+(overdue?'color:#b91c1c;font-weight:700':'')+'">⏰ '+t.dueDate+(overdue?' 已逾期':'')+'</span>';
-    html+='</div>';
+    html+='<div style="font-weight:600;'+doneStyle+'">'+(priMap[t.priority]||'🟡')+' '+escHtml(t.title)+'</div>';
+    if(g||s||t.dueDate){
+      html+='<div style="font-size:9px;color:#64748b;margin-top:1px;display:flex;gap:6px;flex-wrap:wrap">';
+      if(g)html+='<span>'+escHtml(g.name)+'</span>';
+      if(t.dueDate)html+='<span style="'+(overdue?'color:#b91c1c;font-weight:700':'')+'">⏰'+t.dueDate.slice(5)+(overdue?'逾':'')+'</span>';
+      html+='</div>';
+    }
     html+='</div>';
     if(opts.showPlanBtn&&!t.planDate){
-      html+='<button onclick="studySetPlanToday(\''+t.id+'\')" style="padding:3px 8px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;cursor:pointer;font-size:10px;flex-shrink:0">→今天</button>';
+      html+='<button onclick="studySetPlanToday(\''+t.id+'\')" style="padding:1px 5px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:4px;cursor:pointer;font-size:9px;flex-shrink:0">→今天</button>';
     }
-    html+='<button onclick="studyDeleteTodo(\''+t.id+'\')" style="padding:2px 6px;background:none;border:none;color:#b91c1c;cursor:pointer;font-size:14px;flex-shrink:0;opacity:.6" title="删除">×</button>';
+    html+='<button onclick="studyDeleteTodo(\''+t.id+'\')" style="padding:0 4px;background:none;border:none;color:#b91c1c;cursor:pointer;font-size:12px;flex-shrink:0;opacity:.5" title="删除">×</button>';
+    html+='</div></div>';
+    return html;
+  }
+  // 生成月历HTML
+  function renderCalendar(selectedDate){
+    const ts=todayStr();
+    const now=new Date();
+    const year=now.getFullYear(),month=now.getMonth();
+    const firstDay=new Date(year,month,1);
+    const lastDay=new Date(year,month+1,0);
+    const startWeekday=firstDay.getDay();
+    const daysInMonth=lastDay.getDate();
+    const weekdayNames=['日','一','二','三','四','五','六'];
+    let html='<div style="font-size:11px">';
+    html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
+    html+='<span style="font-weight:700;color:#0f172a">'+year+'年'+(month+1)+'月</span>';
+    html+='<span style="font-size:10px;color:#64748b">点击日期查看任务</span>';
+    html+='</div>';
+    // 星期头
+    html+='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:2px">';
+    weekdayNames.forEach(function(w,i){
+      const color=(i===0||i===6)?'#ef4444':'#64748b';
+      html+='<div style="text-align:center;font-size:10px;color:'+color+';font-weight:600;padding:2px 0">'+w+'</div>';
+    });
+    html+='</div>';
+    // 日期格子
+    html+='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px">';
+    for(let i=0;i<startWeekday;i++){
+      html+='<div></div>';
+    }
+    for(let d=1;d<=daysInMonth;d++){
+      const dateStr=year+'-'+String(month+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+      const isToday=dateStr===ts;
+      const isSelected=dateStr===selectedDate;
+      const dayTodos=getTodos().filter(t=>t.planDate===dateStr&&!t.done);
+      const hasTasks=dayTodos.length>0;
+      const weekday=new Date(year,month,d).getDay();
+      const isWeekend=weekday===0||weekday===6;
+      let bg='#fff',color='#334155',border='1px solid #e2e8f0';
+      if(isToday){bg='#eff6ff';color='#1d4ed8';border='1px solid #93c5fd';}
+      if(isSelected){bg='linear-gradient(135deg,#0ea5e9,#2563eb)';color='#fff';border='1px solid #2563eb';}
+      if(isWeekend&&!isToday&&!isSelected){color='#ef4444';}
+      html+='<div onclick="studySelectDate(\''+dateStr+'\')" style="text-align:center;padding:4px 2px;border-radius:4px;background:'+bg+';color:'+color+';border:'+border+';cursor:pointer;font-size:11px;font-weight:'+(isToday||isSelected?'700':'400')+';position:relative">';
+      html+=d;
+      if(hasTasks&&!isSelected){
+        html+='<div style="position:absolute;bottom:1px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:'+(isToday?'#2563eb':'#10b981')+'"></div>';
+      }
+      html+='</div>';
+    }
     html+='</div></div>';
     return html;
   }
   function renderStudyTodos(){window.renderStudyTodos=renderStudyTodos;
     const table=document.getElementById('studyTodosTable');if(!table)return;
-    // select options
     const goalSel=document.getElementById('stTodoGoal');
     if(goalSel&&goalSel.options.length<=1){renderStudyTodosSelects()}
     const subjectSel=document.getElementById('stTodoSub');
-    if(subjectSel){
-      const gid=document.getElementById('stTodoGoal').value;
-      studyRefreshSubjectSel(gid,'stTodoSub');
-    }
+    if(subjectSel){const gid=document.getElementById('stTodoGoal').value;studyRefreshSubjectSel(gid,'stTodoSub');}
     const filter=(getState().filterTodo||'all');
     const fGoal=document.getElementById('stTodoGoalFilter')?.value||'';
     const fPri=document.getElementById('stTodoPriFilter')?.value||'';
@@ -13234,118 +13274,135 @@ renderPwds();
     if(fPri)list=list.filter(t=>t.priority===fPri);
     if(kw)list=list.filter(t=>[t.title].some(v=>(v||'').toLowerCase().includes(kw)));
     document.querySelectorAll('#study .study-fil-btn').forEach(b=>b.style.background='#fff');
-    // 排序
     const sorted=sortTodos(list);
-    // 隐藏已完成开关
     const hideDone=localStorage.getItem('study_hide_done')==='1';
-    // 今日任务
-    const todayTodos=sorted.filter(t=>!t.done&&t.planDate===ts);
-    const todayDone=sorted.filter(t=>t.done&&t.planDate===ts);
-    const todayTotal=todayTodos.length+todayDone.length;
-    // 逾期任务
-    const overdueTodos=sorted.filter(t=>!t.done&&t.dueDate&&t.dueDate<ts);
-    // 未安排日期
-    const noPlanTodos=sorted.filter(t=>!t.done&&!t.planDate);
-    // 未来7天（不含今天）
+    const calCollapsed=localStorage.getItem('study_cal_collapsed')==='1';
+    const selectedDate=localStorage.getItem('study_selected_date')||ts;
+    // 本周7天（含今天）
     const weekDays=[];
-    for(let i=1;i<=6;i++){
+    for(let i=0;i<7;i++){
       const d=new Date();d.setDate(d.getDate()+i);
       const ds=d.toISOString().slice(0,10);
       const dayTodos=sorted.filter(t=>!t.done&&t.planDate===ds);
       const weekday=['日','一','二','三','四','五','六'][d.getDay()];
-      weekDays.push({date:ds,label:'周'+weekday,short:(d.getMonth()+1)+'/'+d.getDate(),todos:dayTodos});
+      weekDays.push({date:ds,label:'周'+weekday,short:(d.getMonth()+1)+'/'+d.getDate(),todos:dayTodos,isToday:ds===ts,isSelected:ds===selectedDate});
     }
-    // 已完成（非今天）
-    const otherDone=sorted.filter(t=>t.done&&t.planDate!==ts);
-    // 折叠状态
-    const dayCollapsed=JSON.parse(localStorage.getItem('study_day_collapsed')||'{}');
+    // 选中日期的任务
+    const selTodos=sorted.filter(t=>t.planDate===selectedDate);
+    const selDone=selTodos.filter(t=>t.done);
+    const selPending=selTodos.filter(t=>!t.done);
+    // 未安排日期
+    const noPlanTodos=sorted.filter(t=>!t.done&&!t.planDate);
+    // 逾期
+    const overdueTodos=sorted.filter(t=>!t.done&&t.dueDate&&t.dueDate<ts);
     const doneCollapsed=localStorage.getItem('study_done_collapsed')==='1';
     // ========== 渲染 ==========
-    let html='<div style="display:grid;grid-template-columns:2fr 3fr;gap:16px;align-items:start">';
-    // ----- 左侧：今日任务 -----
+    let html='';
+    // ===== 上方：本周7列网格 =====
+    html+='<div class="card" style="margin-bottom:16px">';
+    html+='<h3 style="display:flex;justify-content:space-between;align-items:center"><span>📆 本周任务（一天一列）</span>';
+    html+='<label style="font-size:11px;font-weight:400;color:#64748b;cursor:pointer;display:flex;align-items:center;gap:4px">';
+    html+='<input type="checkbox" '+(hideDone?'checked':'')+' onchange="studyToggleHideDone()" style="width:14px;height:14px">隐藏已完成';
+    html+='</label></h3>';
+    html+='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px">';
+    weekDays.forEach(function(day){
+      const headerBg=day.isToday?'linear-gradient(135deg,#0ea5e9,#2563eb)':(day.isSelected?'#eff6ff':'#f8fafc');
+      const headerColor=day.isToday?'#fff':(day.isSelected?'#1d4ed8':'#475569');
+      html+='<div style="border:1px solid '+(day.isToday?'#93c5fd':(day.isSelected?'#bfdbfe':'#e2e8f0'))+';border-radius:10px;overflow:hidden;display:flex;flex-direction:column;max-height:320px">';
+      html+='<div onclick="studySelectDate(\''+day.date+'\')" style="padding:8px 10px;background:'+headerBg+';color:'+headerColor+';cursor:pointer;text-align:center">';
+      html+='<div style="font-size:11px;font-weight:700">'+day.label+(day.isToday?' · 今天':'')+'</div>';
+      html+='<div style="font-size:13px;font-weight:800;margin-top:1px">'+day.short+'</div>';
+      html+='<div style="font-size:10px;margin-top:2px;opacity:.8">'+day.todos.length+' 个任务</div>';
+      html+='</div>';
+      html+='<div style="padding:6px;overflow-y:auto;flex:1">';
+      if(day.todos.length===0){
+        html+='<div style="text-align:center;color:#cbd5e1;font-size:10px;padding:12px 0">无任务</div>';
+      }else{
+        day.todos.slice(0,6).forEach(t=>{html+=todoItemHtml(t);});
+        if(day.todos.length>6){
+          html+='<div style="text-align:center;font-size:10px;color:#64748b;padding:4px;cursor:pointer" onclick="studySelectDate(\''+day.date+'\')">还有 '+(day.todos.length-6)+' 个 →</div>';
+        }
+      }
+      html+='</div></div>';
+    });
+    html+='</div></div>';
+    // ===== 下方：左右分栏 =====
+    html+='<div style="display:grid;grid-template-columns:1fr 1.5fr;gap:16px;align-items:start">';
+    // --- 下方左侧：今日任务 + 日历 ---
     html+='<div class="card" style="margin:0">';
-    html+='<h3 style="display:flex;justify-content:space-between;align-items:center"><span>📅 今日任务</span>';
-    html+='<span style="font-size:12px;font-weight:400;color:#64748b">'+todayDone.length+'/'+todayTotal+' 已完成</span></h3>';
-    // 进度条
-    if(todayTotal>0){
-      const pct=Math.round(todayDone.length/todayTotal*100);
-      html+='<div style="height:8px;background:#e2e8f0;border-radius:6px;margin-bottom:12px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,#10b981,#0ea5e9);border-radius:6px;transition:width .3s"></div></div>';
+    html+='<h3>📅 今日任务</h3>';
+    const todayTodos=sorted.filter(t=>t.planDate===ts);
+    const todayDone=todayTodos.filter(t=>t.done);
+    const todayPending=todayTodos.filter(t=>!t.done);
+    if(todayTodos.length>0){
+      const pct=Math.round(todayDone.length/todayTodos.length*100);
+      html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-size:12px;color:#64748b">'+todayDone.length+'/'+todayTodos.length+' 已完成</span><span style="font-size:12px;font-weight:700;color:#0ea5e9">'+pct+'%</span></div>';
+      html+='<div style="height:6px;background:#e2e8f0;border-radius:4px;margin-bottom:12px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,#10b981,#0ea5e9);border-radius:4px"></div></div>';
     }
-    // 逾期提醒
     if(overdueTodos.length>0){
-      html+='<div style="padding:8px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;margin-bottom:12px;font-size:12px;color:#b91c1c;font-weight:600">⚠ '+overdueTodos.length+' 个任务已逾期，请优先处理</div>';
+      html+='<div style="padding:6px 10px;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;margin-bottom:10px;font-size:11px;color:#b91c1c;font-weight:600">⚠ '+overdueTodos.length+' 个已逾期</div>';
     }
-    // 今日任务列表
-    if(todayTodos.length===0&&todayDone.length===0){
-      html+='<div style="padding:20px;text-align:center;color:#94a3b8;font-size:12px">今天没有安排任务<br><span style="font-size:11px">在右侧"未安排日期"里点"→今天"安排任务吧</span></div>';
+    if(todayPending.length===0&&todayDone.length===0){
+      html+='<div style="padding:16px;text-align:center;color:#94a3b8;font-size:12px">今天没有安排任务</div>';
     }else{
-      todayTodos.forEach(t=>{html+=todoItemHtml(t);});
+      todayPending.forEach(t=>{html+=todoItemHtml(t);});
       if(todayDone.length>0){
         html+='<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #e2e8f0">';
-        html+='<div onclick="studyToggleDoneCollapse()" style="cursor:pointer;font-size:11px;color:#64748b;margin-bottom:6px">✅ 今日已完成 ('+todayDone.length+') '+(doneCollapsed?'▶':'▼')+'</div>';
+        html+='<div onclick="studyToggleDoneCollapse()" style="cursor:pointer;font-size:11px;color:#64748b;margin-bottom:4px">✅ 已完成 ('+todayDone.length+') '+(doneCollapsed?'▶':'▼')+'</div>';
         if(!doneCollapsed){todayDone.forEach(t=>{html+=todoItemHtml(t);});}
         html+='</div>';
       }
     }
     // 快速添加
-    html+='<div style="margin-top:12px;padding-top:10px;border-top:1px solid #e2e8f0">';
-    html+='<div style="display:flex;gap:6px">';
-    html+='<input id="stQuickTodo" type="text" placeholder="快速添加今日任务..." onkeydown="if(event.key===\'Enter\')studyQuickAddToday()" style="flex:1;padding:6px 10px;border:1px solid #cbd5e1;border-radius:7px;font-size:12px">';
-    html+='<button onclick="studyQuickAddToday()" style="padding:6px 14px;background:linear-gradient(135deg,#2563eb,#0ea5e9);color:#fff;border:none;border-radius:7px;cursor:pointer;font-weight:700;font-size:12px">添加</button>';
-    html+='</div></div>';
+    html+='<div style="margin-top:10px;padding-top:8px;border-top:1px solid #e2e8f0">';
+    html+='<div style="display:flex;gap:6px"><input id="stQuickTodo" type="text" placeholder="快速添加今日任务..." onkeydown="if(event.key===\'Enter\')studyQuickAddToday()" style="flex:1;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:11px"><button onclick="studyQuickAddToday()" style="padding:5px 12px;background:linear-gradient(135deg,#2563eb,#0ea5e9);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:11px">添加</button></div>';
     html+='</div>';
-    // ----- 右侧：本周任务清单 -----
+    // 日历表（可折叠）
+    html+='<div style="margin-top:12px;padding-top:10px;border-top:1px solid #e2e8f0">';
+    html+='<div onclick="studyToggleCalCollapse()" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
+    html+='<span style="font-size:12px;font-weight:700;color:#0f172a">📆 日历表</span>';
+    html+='<span style="font-size:10px;color:#64748b">'+(calCollapsed?'▶ 展开':'▼ 收起')+'</span>';
+    html+='</div>';
+    if(!calCollapsed){
+      html+=renderCalendar(selectedDate);
+    }
+    html+='</div>';
+    html+='</div>';
+    // --- 下方右侧：选中日期任务清单 ---
     html+='<div class="card" style="margin:0">';
+    const selD=new Date(selectedDate);
+    const selWeekday=['日','一','二','三','四','五','六'][selD.getDay()];
     html+='<h3 style="display:flex;justify-content:space-between;align-items:center">';
-    html+='<span>📆 本周任务清单</span>';
-    html+='<label style="font-size:11px;font-weight:400;color:#64748b;cursor:pointer;display:flex;align-items:center;gap:4px">';
-    html+='<input type="checkbox" '+(hideDone?'checked':'')+' onchange="studyToggleHideDone()" style="width:14px;height:14px">隐藏已完成';
-    html+='</label></h3>';
-    // 未安排日期
+    html+='<span>📋 '+selectedDate+(selectedDate===ts?'（今天）':'')+' 周'+selWeekday+' 的任务</span>';
+    html+='<span style="font-size:12px;font-weight:400;color:#64748b">'+selPending.length+' 待办 / '+selDone.length+' 已完成</span>';
+    html+='</h3>';
+    // 未安排日期（如果有）
     if(noPlanTodos.length>0){
       html+='<div style="margin-bottom:12px">';
-      html+='<div style="font-size:12px;font-weight:700;color:#b45309;margin-bottom:6px">📌 未安排日期 ('+noPlanTodos.length+')</div>';
+      html+='<div style="font-size:11px;font-weight:700;color:#b45309;margin-bottom:4px">📌 未安排日期 ('+noPlanTodos.length+')</div>';
       noPlanTodos.forEach(t=>{html+=todoItemHtml(t,{showPlanBtn:true});});
       html+='</div>';
     }
-    // 今天（在右侧也显示一次，方便对照）
-    const todayAll=sorted.filter(t=>!t.done&&t.planDate===ts);
-    if(todayAll.length>0){
-      html+='<div style="margin-bottom:10px">';
-      html+='<div style="font-size:12px;font-weight:700;color:#0369a1;margin-bottom:6px">📅 今天 ('+todayAll.length+')</div>';
-      todayAll.forEach(t=>{html+=todoItemHtml(t);});
-      html+='</div>';
-    }
-    // 未来6天
-    weekDays.forEach(function(day){
-      if(day.todos.length===0)return;
-      const collapsed=dayCollapsed[day.date];
-      html+='<div style="margin-bottom:8px">';
-      html+='<div onclick="studyToggleDayCollapse(\''+day.date+'\')" style="cursor:pointer;font-size:12px;font-weight:600;color:#475569;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center">';
-      html+='<span>📅 '+day.label+' '+day.short+' ('+day.todos.length+')</span>';
-      html+='<span style="font-size:10px;color:#94a3b8">'+(collapsed?'▶ 展开':'▼ 折叠')+'</span>';
-      html+='</div>';
-      if(!collapsed){day.todos.forEach(t=>{html+=todoItemHtml(t);});}
-      html+='</div>';
-    });
-    // 已完成（非今天）
-    if(otherDone.length>0&&!hideDone){
-      html+='<div style="margin-top:12px;padding-top:10px;border-top:1px dashed #e2e8f0">';
-      html+='<div onclick="studyToggleOtherDoneCollapse()" style="cursor:pointer;font-size:12px;font-weight:600;color:#64748b;margin-bottom:6px">✅ 已完成 ('+otherDone.length+') '+(doneCollapsed?'▶':'▼')+'</div>';
-      if(!doneCollapsed){otherDone.forEach(t=>{html+=todoItemHtml(t);});}
-      html+='</div>';
-    }
-    // 空状态
-    if(noPlanTodos.length===0&&todayAll.length===0&&weekDays.every(d=>d.todos.length===0)&&(hideDone||otherDone.length===0)){
-      html+='<div style="padding:20px;text-align:center;color:#94a3b8;font-size:12px">本周暂无任务安排</div>';
+    if(selPending.length===0&&selDone.length===0&&noPlanTodos.length===0){
+      html+='<div style="padding:20px;text-align:center;color:#94a3b8;font-size:12px">这一天没有安排任务</div>';
+    }else{
+      if(selPending.length>0){
+        html+='<div style="margin-bottom:8px"><div style="font-size:11px;font-weight:700;color:#0369a1;margin-bottom:4px">⏳ 待办 ('+selPending.length+')</div>';
+        selPending.forEach(t=>{html+=todoItemHtml(t);});
+        html+='</div>';
+      }
+      if(selDone.length>0){
+        html+='<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #e2e8f0">';
+        html+='<div onclick="studyToggleDoneCollapse()" style="cursor:pointer;font-size:11px;color:#64748b;margin-bottom:4px">✅ 已完成 ('+selDone.length+') '+(doneCollapsed?'▶':'▼')+'</div>';
+        if(!doneCollapsed){selDone.forEach(t=>{html+=todoItemHtml(t);});}
+        html+='</div>';
+      }
     }
     html+='</div>';
     html+='</div>';
     table.innerHTML=html;
-    // 初始化拖拽
     initTodoDrag();
   }
-  // 快捷添加今日任务
   window.studyQuickAddToday=function(){
     const input=document.getElementById('stQuickTodo');if(!input)return;
     const title=(input.value||'').trim();if(!title){toast('请输入任务内容');return}
@@ -13353,32 +13410,25 @@ renderPwds();
     arr.unshift({id:uid('st'),title,goalId:'',subjectId:'',priority:'medium',planDate:todayStr(),dueDate:'',done:false,createdAt:Date.now()});
     saveTodos(arr);input.value='';renderStudyTodos();renderDashBoard();
   };
-  // 一键安排到今天
   window.studySetPlanToday=function(id){
     const arr=getTodos();const t=arr.find(x=>x.id===id);if(!t)return;
     t.planDate=todayStr();saveTodos(arr);renderStudyTodos();
   };
-  // 隐藏已完成开关
+  window.studySelectDate=function(date){
+    localStorage.setItem('study_selected_date',date);renderStudyTodos();
+  };
+  window.studyToggleCalCollapse=function(){
+    const cur=localStorage.getItem('study_cal_collapsed')==='1';
+    localStorage.setItem('study_cal_collapsed',cur?'0':'1');renderStudyTodos();
+  };
   window.studyToggleHideDone=function(){
     const cur=localStorage.getItem('study_hide_done')==='1';
     localStorage.setItem('study_hide_done',cur?'0':'1');renderStudyTodos();
   };
-  // 每天折叠切换
-  window.studyToggleDayCollapse=function(date){
-    const collapsed=JSON.parse(localStorage.getItem('study_day_collapsed')||'{}');
-    collapsed[date]=!collapsed[date];
-    localStorage.setItem('study_day_collapsed',JSON.stringify(collapsed));renderStudyTodos();
-  };
-  // 已完成折叠切换
   window.studyToggleDoneCollapse=function(){
     const cur=localStorage.getItem('study_done_collapsed')==='1';
     localStorage.setItem('study_done_collapsed',cur?'0':'1');renderStudyTodos();
   };
-  window.studyToggleOtherDoneCollapse=function(){
-    const cur=localStorage.getItem('study_done_collapsed')==='1';
-    localStorage.setItem('study_done_collapsed',cur?'0':'1');renderStudyTodos();
-  };
-  // 拖拽排序
   function initTodoDrag(){
     const items=document.querySelectorAll('.todo-drag-item');
     let dragId=null;
@@ -13397,12 +13447,9 @@ renderPwds();
         if(dragIdx<0||targetIdx<0)return;
         const [moved]=arr.splice(dragIdx,1);
         arr.splice(targetIdx,0,moved);
-        // 如果拖到同一天，更新 createdAt 以维持排序
         const dragTodo=arr.find(x=>x.id===dragId);
         const targetTodo=arr.find(x=>x.id===targetId);
-        if(dragTodo&&targetTodo&&dragTodo.planDate===targetTodo.planDate){
-          dragTodo.createdAt=Date.now();
-        }
+        if(dragTodo&&targetTodo&&dragTodo.planDate===targetTodo.planDate){dragTodo.createdAt=Date.now();}
         saveTodos(arr);renderStudyTodos();
       });
     });
