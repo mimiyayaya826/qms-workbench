@@ -10962,14 +10962,84 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
           +'<button type="button" onclick="toggleAllQuickSections()" style="padding:4px 12px;border:1px solid var(--border);border-radius:6px;background:#fff;cursor:pointer;font-size:11px;color:#64748b">'+(allCollapsed?'🔽 全部展开':'🔼 全部折叠')+'</button>'
           +'</div>';
         if(!secs||secs.length===0){
-          // ===== 兜底：找不到分组时，不要什么都不渲染，给出可操作提示 =====
-          html+='<div style="grid-column:1/-1;padding:22px 18px;border:2px dashed #fca5a5;border-radius:14px;background:linear-gradient(135deg,#fff7ed,#fef2f2);text-align:center">'
-            +'<div style="font-size:32px;margin-bottom:6px">🧭</div>'
-            +'<div style="font-size:14px;font-weight:700;color:#b91c1c;margin-bottom:6px">快速入口分组加载异常</div>'
-            +'<div style="font-size:12px;color:#7f1d1d;margin-bottom:14px;line-height:1.7">左侧导航分组读取失败，可能是部分数据格式需要刷新清理。<br>不用怕，所有数据都在 localStorage 里不会丢，点下面按钮一键重建即可：</div>'
-            +'<button type="button" onclick="try{localStorage.removeItem(\'qms_quick_order_v2\');localStorage.removeItem(\'qms_quick_groups\');renderQuickGrid&&renderQuickGrid();}catch(e){try{location.reload();}catch(_){}}" style="padding:8px 22px;background:#dc2626;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;margin-right:8px">🔧 一键重建快速入口</button>'
-            +'<button type="button" onclick="try{location.reload();}catch(_){}" style="padding:8px 22px;background:#fff;color:#1d4ed8;border:1px solid #93c5fd;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">🔄 刷新页面</button>'
-            +'</div>';
+          // =========================================================
+          //  FALLBACK: getNavSections() failed (nav-section structure
+          //  missing or malformed). We MUST still show the cards.
+          //  Strategy: grab ALL .nav-item elements directly, skip
+          //  grouping logic entirely, render one flat set of cards.
+          // =========================================================
+          try{
+            var allItems=document.querySelectorAll('.nav-item');
+            var flat=[];
+            allItems.forEach(function(it){
+              try{
+                var target=it.getAttribute('data-target');
+                var href=it.getAttribute('href');
+                var text=it.textContent.replace(/\s+/g,' ').trim();
+                if(!text)return;
+                var iconName='';
+                var iconEl=it.querySelector('[data-lucide]');
+                if(iconEl) iconName=iconEl.getAttribute('data-lucide')||'';
+                var icon='';
+                if(iconName){
+                  var color=(iconEl.getAttribute('style')||'');
+                  icon='<i data-lucide="'+iconName+'" style="width:26px;height:26px;'+color+';stroke-width:1.8"></i>';
+                }else{
+                  icon='<span style="width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;background:#f0f9ff;color:#0ea5e9;font-size:14px;font-weight:800">'+(text.charAt(0).toUpperCase())+'</span>';
+                }
+                var badge=0;
+                try{badge=target?getModuleBadge(target):0;}catch(_){}
+                if(href&&!target){
+                  flat.push({id:'ext_'+encodeURIComponent(href),target:null,href:href,title:text,icon:icon,badge:badge>0?badge:false,isExternal:true});
+                }else if(target){
+                  flat.push({id:target,target:target,href:null,title:text,icon:icon,badge:badge>0?badge:false,isExternal:false});
+                }
+              }catch(_f_item){}
+            });
+            if(flat.length>0){
+              // Deduplicate by id (some nav-items may be duplicated in DOM)
+              var seen={};
+              var uniq=[];
+              flat.forEach(function(c){if(!seen[c.id]){seen[c.id]=true;uniq.push(c)}});
+              html+='<div style="margin-bottom:14px">'
+                +'<div style="cursor:default;display:flex;align-items:center;gap:8px;padding:6px 4px">'
+                +'<span style="width:4px;height:14px;background:#0ea5e9;border-radius:2px;display:inline-block"></span>'
+                +'<span style="font-size:12px;font-weight:700;color:#334155">全部模块（'+uniq.length+'）</span>'
+                +'<span style="margin-left:auto;font-size:11px;color:#94a3b8;background:#ecfeff;padding:2px 8px;border-radius:6px;border:1px solid #bae6fd">🔧 兜底渲染模式</span>'
+                +'</div>'
+                +'<div style="grid-column:1/-1;background:#f8fafc;border:1px solid #eef2f7;border-radius:10px;padding:10px">'
+                +'<div class="quick-grid" style="gap:10px">';
+              uniq.forEach(function(c){
+                try{
+                  var _sa=function(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
+                  var badgeHtml=c.badge?`<span class="quick-badge">${c.badge}</span>`:'';
+                  if(c.isExternal){
+                    return html += `<a class="quick-card" data-id="${_sa(c.id)}" href="${_sa(c.href||'#')}" target="_blank" rel="noopener nofollow">${badgeHtml}<div class="qicon">${c.icon}</div><div class="qtitle">${escQuick(c.title)}</div></a>`;
+                  }
+                  var tg=c.target?String(c.target).replace(/'/g,"\\'"):'';
+                  html += `<div class="quick-card" data-id="${_sa(c.id)}" onclick="showModule('${tg}')">${badgeHtml}<div class="qicon">${c.icon}</div><div class="qtitle">${escQuick(c.title)}</div></div>`;
+                }catch(_u){}
+              });
+              html += '</div></div></div>';
+            }else{
+              // Even the flat fallback got zero items. Show the repair buttons.
+              html+='<div style="grid-column:1/-1;padding:22px 18px;border:2px dashed #fca5a5;border-radius:14px;background:linear-gradient(135deg,#fff7ed,#fef2f2);text-align:center">'
+                +'<div style="font-size:32px;margin-bottom:6px">🧭</div>'
+                +'<div style="font-size:14px;font-weight:700;color:#b91c1c;margin-bottom:6px">快速入口分组加载异常</div>'
+                +'<div style="font-size:12px;color:#7f1d1d;margin-bottom:14px;line-height:1.7">左侧导航分组读取失败，可能是部分数据格式需要刷新清理。<br>不用怕，所有数据都在 localStorage 里不会丢，点下面按钮一键重建即可：</div>'
+                +'<button type="button" onclick="try{localStorage.removeItem(\'qms_quick_order_v2\');localStorage.removeItem(\'qms_quick_groups\');renderQuickGrid&&renderQuickGrid();}catch(e){try{location.reload();}catch(_){}}" style="padding:8px 22px;background:#dc2626;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;margin-right:8px">🔧 一键重建快速入口</button>'
+                +'<button type="button" onclick="try{location.reload();}catch(_){}" style="padding:8px 22px;background:#fff;color:#1d4ed8;border:1px solid #93c5fd;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">🔄 刷新页面</button>'
+                +'</div>';
+            }
+          }catch(_ffb_){
+            html+='<div style="grid-column:1/-1;padding:22px 18px;border:2px dashed #fca5a5;border-radius:14px;background:linear-gradient(135deg,#fff7ed,#fef2f2);text-align:center">'
+              +'<div style="font-size:32px;margin-bottom:6px">🧭</div>'
+              +'<div style="font-size:14px;font-weight:700;color:#b91c1c;margin-bottom:6px">快速入口分组加载异常</div>'
+              +'<div style="font-size:12px;color:#7f1d1d;margin-bottom:14px;line-height:1.7">兜底逻辑异常：'+(String(_ffb_&&_ffb_.message||_ffb_)).replace(/[<>&]/g,' ')+'<br>数据安全不受影响：</div>'
+              +'<button type="button" onclick="try{localStorage.removeItem(\'qms_quick_order_v2\');localStorage.removeItem(\'qms_quick_groups\');renderQuickGrid&&renderQuickGrid();}catch(e){try{location.reload();}catch(_){}}" style="padding:8px 22px;background:#dc2626;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;margin-right:8px">🔧 一键重建快速入口</button>'
+              +'<button type="button" onclick="try{location.reload();}catch(_){}" style="padding:8px 22px;background:#fff;color:#1d4ed8;border:1px solid #93c5fd;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">🔄 刷新页面</button>'
+              +'</div>';
+          }
         }else{
           secs.forEach(function(sec,idx){
             try{
@@ -11196,39 +11266,28 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
   window.toggleSBCard=function(id){
     try{
       const el=('string'===typeof id)?document.getElementById(id):(id && id.closest? id.closest('.sb-card') : null);
-      if(!el){try{console.warn('[toggleSBCard] target not found:',id);}catch(_){}return}
-      // --- 150ms 防重入（解决委托+inline双触发同时到达的问题）---
-      const nowTs=Date.now();
-      const lastTs=parseInt(el.dataset._sbLastToggle||'0',10);
-      if(nowTs-lastTs<150){return;}
-      el.dataset._sbLastToggle=String(nowTs);
-      // --- 双校验：classList + getComputedStyle 读取 body 真实展示状态 ---
-      // 防止"CSS @media / class 优先级 / 过渡动画"造成 class 与真实显示不一致
-      const bodyEl=el.querySelector(':scope > .sb-card-body');
-      let actuallyHidden=false;
-      if(bodyEl){
-        const cs=window.getComputedStyle(bodyEl);
-        const disp=(cs.display||'').toLowerCase();
-        const maxh=parseFloat(cs.maxHeight||'9999')||0;
-        const opac=parseFloat(cs.opacity||'1')||1;
-        actuallyHidden=(disp==='none') || (maxh<=1 && opac<0.05);
-      }
-      const hasClass=el.classList.contains('collapsed');
-      // 当且仅当 "class 状态" 与 "真实显示状态" 一致时才真正切换，避免重复 toggle
-      if(hasClass===actuallyHidden){
-        el.classList.toggle('collapsed');
-      }else if(actuallyHidden && !hasClass){
-        // 真实隐藏但没加 class → 补齐 class
-        el.classList.add('collapsed');
-      }else if(!actuallyHidden && hasClass){
-        // 真实显示但多了 collapsed → 移除
-        el.classList.remove('collapsed');
-      }
-      // --- 持久化（与 nav-section 同一范式）---
-      const collapsed={};
-      document.querySelectorAll('.sb-card').forEach(c=>{if(c && c.id){collapsed[c.id]=!!c.classList.contains('collapsed')}});
-      try{localStorage.setItem('qms_sb_card_collapse',JSON.stringify(collapsed))}catch(_){}
-    }catch(e){try{console.error('[toggleSBCard]',e)}catch(_){}}
+      if(!el)return;
+      /* =========================================================
+         LESSONS LEARNED: the old "getComputedStyle + actuallyHidden
+         double-check" logic was WRONG because CSS transitions take
+         ~0.26s. DURING the transition, getComputedStyle returns
+         INTERMEDIATE values (maxHeight=120, opacity=0.5, ...) so the
+         "sync class to real state" branch was toggling the class BACK
+         to its previous value -> user clicked, nothing changed visually.
+
+         SOLUTION: we do NOT try to be smart. We just flip the class.
+         End of story. CSS takes care of animation.
+         ========================================================= */
+      el.classList.toggle('collapsed');
+      // --- Persist collapse preference (same schema as nav-section) ---
+      try{
+        const collapsed={};
+        document.querySelectorAll('.sb-card').forEach(function(c){
+          if(c && c.id){collapsed[c.id]=!!c.classList.contains('collapsed')}
+        });
+        localStorage.setItem('qms_sb_card_collapse',JSON.stringify(collapsed));
+      }catch(_){}
+    }catch(e){}
   };
   // 初始化恢复折叠状态 + 事件委托（兜底，仅在没有 inline onclick 时才生效）
   (function _initSBCards(){
@@ -15090,9 +15149,23 @@ function mreviewCopy(){
         }
       }else if(qg){
         // grid 存在但函数不存在（脚本可能还没加载完）→ 写个加载中提示
+        //  KEY FIX: link calls renderQuickGrid() instead of location.reload()
+        //           (reload would show THIS screen again -> infinite loop)
         try{
           if(!qg.innerHTML || qg.innerHTML.trim().length<20){
-            qg.innerHTML='<div style="padding:24px;text-align:center;color:#64748b;font-size:13px"><span style="display:inline-block;animation:spin 1s linear infinite;margin-right:8px">⏳</span>快速入口加载中...若3秒后仍显示本提示，请<span style="color:#2563eb;cursor:pointer;text-decoration:underline" onclick="location.reload()">点这里刷新</span></div>';
+            qg.innerHTML='<div style="padding:24px;text-align:center;color:#64748b;font-size:13px">'
+              +'<span style="display:inline-block;animation:spin 1s linear infinite;margin-right:8px">⏳</span>'
+              +'快速入口加载中...若3秒后仍显示本提示，请'
+              +'<span style="color:#2563eb;cursor:pointer;text-decoration:underline;font-weight:700" '
+              +'onclick="window._forceQuickRender()">'
+              +'点这里强制渲染'
+              +'</span></div>';
+            // Schedule a GUARANTEED auto-retry after 3s - no user click required
+            setTimeout(function(){
+              try{
+                if(window.renderQuickGrid){window.renderQuickGrid();}
+              }catch(_){}
+            },3000);
           }
         }catch(_){}
       }
@@ -15103,6 +15176,32 @@ function mreviewCopy(){
       }catch(_sm_e_){}
     }catch(_top_){ try{console.error('[boot] top:',_top_)}catch(_){} }
   }
+  // ================================================================
+  //  Helper: boot-time "force render quick entries" button callback.
+  //  Previously this code was inlined in HTML with 3-level quote
+  //  nesting (JS string concat + HTML attr + inner JS code), which
+  //  caused SyntaxError: Unexpected identifier 'style' (the escaping
+  //  was hopelessly wrong). We now define a global helper and call
+  //  it with zero inline arguments.
+  // ================================================================
+  window._forceQuickRender=function(){
+    try{
+      var qg=document.getElementById('quickGrid');
+      if(qg){
+        qg.innerHTML='<div style="padding:12px 20px;background:#dcfce7;border:1px solid #86efac;border-radius:12px;color:#166534;font-weight:700;text-align:center;animation:pulse 1.2s ease infinite">🔧 正在强制渲染快速入口，请稍候...</div>';
+      }
+      setTimeout(function(){
+        try{
+          if(window.renderQuickGrid){window.renderQuickGrid();}
+        }catch(e){
+          try{if(qg)qg.innerHTML='<div style="padding:12px 20px;background:#fee2e2;border:1px solid #fca5a5;border-radius:12px;color:#991b1b">❌ 渲染失败：'+String(e.message||e).replace(/[<>&]/g,' ')+'</div>';}catch(_){}
+        }
+      },400);
+    }catch(e){
+      try{location.reload();}catch(_){}
+    }
+  };
+
   // 4 次异步强制渲染（不再依赖"已有内容"的判断，每次都执行）
   try{ _boots(true); }catch(_){}                                  // 立即
   setTimeout(function(){ try{_boots(true)}catch(_){} }, 300);    // 300ms
