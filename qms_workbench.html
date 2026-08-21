@@ -13348,9 +13348,10 @@ renderPwds();
         html+='</div>';
       }
     }
-    // 快速添加
+    // 快速添加（可选择日期）
     html+='<div style="margin-top:10px;padding-top:8px;border-top:1px solid #e2e8f0">';
-    html+='<div style="display:flex;gap:6px"><input id="stQuickTodo" type="text" placeholder="快速添加今日任务..." onkeydown="if(event.key===\'Enter\')studyQuickAddToday()" style="flex:1;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:11px"><button onclick="studyQuickAddToday()" style="padding:5px 12px;background:linear-gradient(135deg,#2563eb,#0ea5e9);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:11px">添加</button></div>';
+    html+='<div style="display:flex;gap:6px;margin-bottom:6px"><input id="stQuickTodo" type="text" placeholder="快速添加任务..." onkeydown="if(event.key===\'Enter\')studyQuickAdd()" style="flex:1;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:11px"><input id="stQuickDate" type="date" value="'+ts+'" style="padding:5px 6px;border:1px solid #cbd5e1;border-radius:6px;font-size:11px;width:130px"><button onclick="studyQuickAdd()" style="padding:5px 12px;background:linear-gradient(135deg,#2563eb,#0ea5e9);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:11px">添加</button></div>';
+    html+='<div style="font-size:10px;color:#94a3b8">💡 选择日期可为任意一天添加任务，默认今天</div>';
     html+='</div>';
     // 日历表（可折叠）
     html+='<div style="margin-top:12px;padding-top:10px;border-top:1px solid #e2e8f0">';
@@ -13398,13 +13399,17 @@ renderPwds();
     table.innerHTML=html;
     initTodoDrag();
   }
-  window.studyQuickAddToday=function(){
+  window.studyQuickAdd=function(){
     const input=document.getElementById('stQuickTodo');if(!input)return;
     const title=(input.value||'').trim();if(!title){toast('请输入任务内容');return}
+    const dateInput=document.getElementById('stQuickDate');
+    const planDate=(dateInput&&dateInput.value)?dateInput.value:todayStr();
     const arr=getTodos();
-    arr.unshift({id:uid('st'),title,goalId:'',subjectId:'',priority:'medium',planDate:todayStr(),dueDate:'',done:false,createdAt:Date.now()});
+    arr.unshift({id:uid('st'),title,goalId:'',subjectId:'',priority:'medium',planDate,dueDate:'',done:false,createdAt:Date.now()});
     saveTodos(arr);input.value='';renderStudyTodos();renderDashBoard();
+    toast('✅ 已添加到 '+planDate);
   };
+  window.studyQuickAddToday=window.studyQuickAdd;// 兼容旧调用
   window.studySetPlanToday=function(id){
     const arr=getTodos();const t=arr.find(x=>x.id===id);if(!t)return;
     t.planDate=todayStr();saveTodos(arr);renderStudyTodos();
