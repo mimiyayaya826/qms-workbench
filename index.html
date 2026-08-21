@@ -13282,7 +13282,7 @@ renderPwds();
     const weekDays=[];
     for(let i=0;i<7;i++){
       const d=new Date();d.setDate(d.getDate()+i);
-      const ds=d.toISOString().slice(0,10);
+      const ds=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
       const dayTodos=sorted.filter(t=>!t.done&&t.planDate===ds);
       const weekday=['日','一','二','三','四','五','六'][d.getDay()];
       weekDays.push({date:ds,label:'周'+weekday,short:(d.getMonth()+1)+'/'+d.getDate(),todos:dayTodos,isToday:ds===ts,isSelected:ds===selectedDate});
@@ -13415,7 +13415,8 @@ renderPwds();
     t.planDate=todayStr();saveTodos(arr);renderStudyTodos();
   };
   window.studySelectDate=function(date){
-    localStorage.setItem('study_selected_date',date);renderStudyTodos();
+    localStorage.setItem('study_selected_date',date);
+    try{renderStudyTodos();}catch(e){console.error('renderStudyTodos error:',e);toast('渲染出错:'+e.message);}
   };
   window.studyToggleCalCollapse=function(){
     const cur=localStorage.getItem('study_cal_collapsed')==='1';
