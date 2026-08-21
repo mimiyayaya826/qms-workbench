@@ -4434,7 +4434,6 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
 <section class="module" id="study">
   <div class="module-header">
     <h2>🎯 个人学习仪表盘</h2>
-    <div class="desc">专升本（广东工业大学 · 电气工程及其自动化）· CET-4 · CET-6 · 粤考 · 国考 · 学习任务 · 艾宾浩斯错题复习 · 资料收藏 · 每日打卡</div>
   </div>
 
   <!-- 1) 考试倒计时卡片行（5张渐变卡片） -->
@@ -12860,7 +12859,16 @@ renderPwds();
   function defaultGoals(){
     return [];
   }
-  function getGoals(){let a=L(K.GOALS,null);if(!a||!Array.isArray(a)){a=defaultGoals();if(a.length)S(K.GOALS,a)}return a}
+  function getGoals(){let a=L(K.GOALS,null);if(!a||!Array.isArray(a)){a=defaultGoals();if(a.length)S(K.GOALS,a)}
+  // 数据迁移：添加新字段
+  var migrated=false;
+  a.forEach(function(g){
+    if(!g.status){g.status='备考中';migrated=true;}
+    if(g.actualScore===undefined){g.actualScore='';migrated=true;}
+    if(g.completed===undefined){g.completed=false;migrated=true;}
+  });
+  if(migrated)S(K.GOALS,a);
+  return a;}
   function saveGoals(a){S(K.GOALS,a)}
   function getTodos(){return L(K.TODOS,[])}function saveTodos(a){S(K.TODOS,a)}
   function getCheckins(){return L(K.CHECKINS,[])}function saveCheckins(a){S(K.CHECKINS,a)}
@@ -12975,7 +12983,10 @@ renderPwds();
       <button onclick="studyAddGoal()" style="padding:8px 18px;background:linear-gradient(135deg,#0284c7,#0ea5e9);color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:700;font-size:12px">➕ 新增目标</button>
     </div>`;return}
     const minsByGoal=computeCheckinMinutesByGoal();
-    box.innerHTML=goals.map(g=>{
+    // 分离未完成和已完成
+    const activeGoals=goals.filter(g=>!g.completed);
+    const completedGoals=goals.filter(g=>g.completed);
+    let dashHtml=activeGoals.map(g=>{
       const totalMins=minsByGoal[g.id]||0;const hoursH=(totalMins/60).toFixed(1);
       const targetH=parseFloat(g.targetHours)||0;
       const hPct=targetH?Math.min(100,Math.round(totalMins/60/targetH*100)):0;
@@ -13009,6 +13020,21 @@ renderPwds();
         ${subs}
       </div>`;
     }).join('');
+    // 已完成目标区域
+    if(completedGoals.length>0){
+      dashHtml+='<div style="margin-top:16px;padding-top:12px;border-top:2px dashed #d1fae5">';
+      dashHtml+='<div style="font-size:13px;font-weight:700;color:#065f46;margin-bottom:8px">✅ 已完成目标 ('+completedGoals.length+')</div>';
+      dashHtml+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px">';
+      completedGoals.forEach(function(g){
+        const actual=g.actualScore!==''&&g.actualScore!==undefined?g.actualScore:'—';
+        dashHtml+='<div style="padding:10px 12px;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1px solid #bbf7d0;border-radius:10px">';
+        dashHtml+='<div style="font-weight:600;font-size:12px;color:#065f46">'+(g.icon||'🎯')+' '+g.name+'</div>';
+        dashHtml+='<div style="font-size:11px;color:#047857;margin-top:2px">实际分：'+actual+' / '+(g.totalScore||0)+'</div>';
+        dashHtml+='</div>';
+      });
+      dashHtml+='</div></div>';
+    }
+    box.innerHTML=dashHtml;
   }
   function renderHeatmap(){
     const box=document.getElementById('studyHeatmap');if(!box)return;
@@ -13524,6 +13550,7 @@ renderPwds();
     const arr=getGoals();const g=arr.find(x=>x.id===gid);if(!g)return;
     if(field==='subjects')return;// 不允许直接覆盖科目数组
     if(['targetScore','totalScore','targetHours'].includes(field)){g[field]=parseFloat(val)||0}
+    else if(field==='actualScore'){g[field]=val===''?'':(parseFloat(val)||0)}
     else{g[field]=val}
     saveGoals(arr);renderCountdownRow();renderGoalDash();
   };
@@ -13584,20 +13611,50 @@ renderPwds();
     const examDate=prompt('考试日期 YYYY-MM-DD：',todayStr())||todayStr();
     const id='g_'+uid('');
     const color='linear-gradient(135deg,#0ea5e9,#2563eb)';
-    saveGoals(getGoals().concat([{id,name,color,short,icon:'🎯',examDate,targetScore:300,totalScore:450,targetHours:200,subjects:[{id:uid('s'),name:'科目 1',targetScore:100,totalScore:150}]}]));
+    saveGoals(getGoals().concat([{id,name,color,short,icon:'🎯',examDate,targetScore:300,totalScore:450,targetHours:200,status:'备考中',actualScore:'',completed:false,subjects:[{id:uid('s'),name:'科目 1',targetScore:100,totalScore:150}]}]));
     renderAllStudyUIs();
   };
   function renderStudyGoalEditor(){
     const box=document.getElementById('studyGoalEditor');if(!box)return;
-    box.innerHTML=getGoals().map(g=>`
-      <div style="border:1px solid #e2e8f0;border-radius:14px;padding:14px;background:linear-gradient(180deg,#fff,#f8fafc);position:relative">
+    const allGoals=getGoals();
+    // 读取筛选和折叠状态
+    let filter=localStorage.getItem('study_goal_filter')||'all';
+    let collapsed=localStorage.getItem('study_completed_collapsed')==='1';
+    // 筛选
+    let goals=allGoals;
+    if(filter==='completed'){goals=allGoals.filter(g=>g.completed);}
+    else if(filter!=='all'){goals=allGoals.filter(g=>g.status===filter);}
+    // 分离已完成和未完成
+    const activeGoals=goals.filter(g=>!g.completed);
+    const completedGoals=goals.filter(g=>g.completed);
+    // 筛选器选项
+    const filterOpts=[
+      {v:'all',l:'全部',c:allGoals.length},
+      {v:'备考中',l:'备考中',c:allGoals.filter(g=>g.status==='备考中').length},
+      {v:'已考完',l:'已考完',c:allGoals.filter(g=>g.status==='已考完').length},
+      {v:'已出分',l:'已出分',c:allGoals.filter(g=>g.status==='已出分').length},
+      {v:'已通过',l:'已通过',c:allGoals.filter(g=>g.status==='已通过').length},
+      {v:'completed',l:'已完成',c:allGoals.filter(g=>g.completed).length}
+    ];
+    const statusOpts=['备考中','已考完','已出分','已通过'];
+    // 生成单个目标卡片的函数
+    function goalCard(g){
+      const canComplete=(g.status==='已通过'||g.status==='已出分');
+      const statusColor=g.status==='已通过'?'#10b981':(g.status==='已出分'?'#f59e0b':(g.status==='已考完'?'#3b82f6':'#64748b'));
+      return `<div style="border:1px solid #e2e8f0;border-radius:14px;padding:14px;background:linear-gradient(180deg,#fff,#f8fafc);position:relative;margin-bottom:12px">
         <button onclick="studyDeleteGoal('${g.id}')" style="position:absolute;top:10px;right:10px;padding:3px 8px;border:1px solid #fecaca;background:#fff;color:#b91c1c;border-radius:8px;cursor:pointer;font-size:11px">删除此考试</button>
         <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:10px">
           <div style="grid-column:span 2"><label style="font-size:11px;color:#475569">考试名称</label><input value="${escHtml(g.name)}" onchange="studyUpdateGoal('${g.id}','name',this.value)" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:7px;font-size:12px"></div>
           <div><label style="font-size:11px;color:#475569">图标 emoji</label><input value="${escHtml(g.icon||'📘')}" onchange="studyUpdateGoal('${g.id}','icon',this.value)" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:7px;font-size:12px;text-align:center"></div>
           <div><label style="font-size:11px;color:#475569">考试日期</label><input type="date" value="${escHtml(g.examDate)}" onchange="studyUpdateGoal('${g.id}','examDate',this.value)" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:7px;font-size:12px"></div>
-          <div><label style="font-size:11px;color:#475569">目标分 / 满分</label><div style="display:flex;gap:4px"><input type="number" value="${g.targetScore||0}" onchange="studyUpdateGoal('${g.id}','targetScore',this.value)" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:7px;font-size:12px;text-align:center"><span style="color:#94a3b8">/</span><input type="number" value="${g.totalScore||0}" onchange="studyUpdateGoal('${g.id}','totalScore',this.value)" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:7px;font-size:12px;text-align:center"></div></div>
+          <div><label style="font-size:11px;color:#475569">状态</label><select onchange="studyUpdateGoal('${g.id}','status',this.value)" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:7px;font-size:12px;color:${statusColor};font-weight:600">
+            ${statusOpts.map(s=>`<option value="${s}"${g.status===s?' selected':''}>${s}</option>`).join('')}
+          </select></div>
           <div><label style="font-size:11px;color:#475569">目标学时(h)</label><input type="number" value="${g.targetHours||0}" onchange="studyUpdateGoal('${g.id}','targetHours',this.value)" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:7px;font-size:12px;text-align:center"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">
+          <div><label style="font-size:11px;color:#475569">🎯 目标分 / 满分</label><div style="display:flex;gap:4px;align-items:center"><input type="number" value="${g.targetScore||0}" onchange="studyUpdateGoal('${g.id}','targetScore',this.value)" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:7px;font-size:12px;text-align:center"><span style="color:#94a3b8">/</span><input type="number" value="${g.totalScore||0}" onchange="studyUpdateGoal('${g.id}','totalScore',this.value)" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:7px;font-size:12px;text-align:center"></div></div>
+          <div><label style="font-size:11px;color:#475569">📊 实际分 / 满分</label><div style="display:flex;gap:4px;align-items:center"><input type="number" value="${g.actualScore!==''?g.actualScore:''}" placeholder="出分后填写" onchange="studyUpdateGoal('${g.id}','actualScore',this.value)" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:7px;font-size:12px;text-align:center;background:${g.actualScore!==''?'#f0fdf4':'#fff'}"><span style="color:#94a3b8">/</span><span style="padding:6px 8px;font-size:12px;color:#64748b">${g.totalScore||0}</span></div></div>
         </div>
         <div style="margin:2px 0 8px"><label style="font-size:11px;color:#475569">学校/专业/说明</label><input value="${escHtml(g.short||'')}" onchange="studyUpdateGoal('${g.id}','short',this.value)" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:7px;font-size:12px"></div>
         <div style="margin-top:8px">
@@ -13612,13 +13669,63 @@ renderPwds();
             <button onclick="studyDeleteSubject('${g.id}','${s.id}')" style="padding:4px 8px;background:#fff;border:1px solid #fecaca;color:#b91c1c;border-radius:6px;cursor:pointer;font-size:11px">删除</button>
           </div>`).join('')||'<div style="font-size:11px;color:#94a3b8;padding:6px">还没有科目，点右上角 + 添加</div>'}
         </div>
-        <div style="margin-top:10px;padding-top:10px;border-top:1px dashed #e2e8f0;display:flex;justify-content:space-between;align-items:center">
-          <span style="font-size:11px;color:#94a3b8">💡 修改任意字段后，点此按钮立即保存并同步上方仪表盘</span>
+        <div style="margin-top:10px;padding-top:10px;border-top:1px dashed #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+          <div style="display:flex;gap:8px;align-items:center">
+            <button onclick="studyToggleComplete('${g.id}')" ${canComplete?'':'disabled style="opacity:0.4;cursor:not-allowed"'} style="padding:6px 14px;background:${g.completed?'linear-gradient(135deg,#10b981,#059669)':'linear-gradient(135deg,#f59e0b,#d97706)'};color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:12px">${g.completed?'✅ 已完成（取消）':'🏁 标记完成'}</button>
+            ${!canComplete?'<span style="font-size:10px;color:#94a3b8">（状态需为"已出分"或"已通过"）</span>':''}
+          </div>
           <button onclick="studySaveGoalManual('${g.id}')" style="padding:6px 16px;background:linear-gradient(135deg,#0284c7,#0ea5e9);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:12px">💾 保存修改</button>
         </div>
-      </div>
-    `).join('')+`<div style="text-align:center;margin-top:6px"><button onclick="studyAddGoal()" style="padding:8px 18px;border:1px dashed #38bdf8;background:#eff6ff;color:#0369a1;border-radius:12px;cursor:pointer;font-weight:700;font-size:12px">➕ 新增一个考试目标</button></div>`;
+      </div>`;
+    }
+    // 顶部筛选器
+    let html='<div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;align-items:center">';
+    html+='<span style="font-size:12px;font-weight:600;color:#475569;margin-right:4px">筛选：</span>';
+    filterOpts.forEach(o=>{
+      const active=filter===o.v;
+      html+=`<button onclick="studySetGoalFilter('${o.v}')" style="padding:5px 12px;border-radius:14px;font-size:11px;cursor:pointer;border:1px solid ${active?'#0ea5e9':'#e2e8f0'};background:${active?'#eff6ff':'#fff'};color:${active?'#0369a1':'#475569'};font-weight:${active?'700':'400'}">${o.l} (${o.c})</button>`;
+    });
+    html+='</div>';
+    // 未完成目标
+    if(activeGoals.length>0){
+      html+=`<div style="font-size:12px;font-weight:600;color:#0f172a;margin-bottom:8px">📋 进行中 (${activeGoals.length})</div>`;
+      activeGoals.forEach(g=>{html+=goalCard(g);});
+    }else if(filter==='all'||filter==='completed'){
+      html+='<div style="padding:12px;text-align:center;color:#94a3b8;font-size:12px">暂无进行中的目标</div>';
+    }
+    // 已完成目标（折叠）
+    if(completedGoals.length>0){
+      html+=`<div style="margin-top:16px;border:1px solid #d1fae5;border-radius:12px;overflow:hidden;background:#f0fdf4">
+        <div onclick="studyToggleCompletedCollapse()" style="padding:10px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(90deg,#d1fae5,#a7f3d0)">
+          <span style="font-weight:700;font-size:13px;color:#065f46">✅ 已完成目标 (${completedGoals.length})</span>
+          <span style="font-size:12px;color:#047857">${collapsed?'▶ 点击展开':'▼ 点击折叠'}</span>
+        </div>
+        <div style="padding:12px;display:${collapsed?'none':'block'}">`;
+      completedGoals.forEach(g=>{html+=goalCard(g);});
+      html+='</div></div>';
+    }
+    // 新增按钮
+    html+=`<div style="text-align:center;margin-top:12px"><button onclick="studyAddGoal()" style="padding:8px 18px;border:1px dashed #38bdf8;background:#eff6ff;color:#0369a1;border-radius:12px;cursor:pointer;font-weight:700;font-size:12px">➕ 新增一个考试目标</button></div>`;
+    box.innerHTML=html;
   }
+  // 筛选器设置
+  window.studySetGoalFilter=function(v){
+    localStorage.setItem('study_goal_filter',v);
+    renderStudyGoalEditor();
+  };
+  // 已完成折叠切换
+  window.studyToggleCompletedCollapse=function(){
+    const cur=localStorage.getItem('study_completed_collapsed')==='1';
+    localStorage.setItem('study_completed_collapsed',cur?'0':'1');
+    renderStudyGoalEditor();
+  };
+  // 标记完成切换
+  window.studyToggleComplete=function(gid){
+    const arr=getGoals();const g=arr.find(x=>x.id===gid);if(!g)return;
+    if(g.status!=='已通过'&&g.status!=='已出分'){toast('状态需为"已出分"或"已通过"才能标记完成');return;}
+    g.completed=!g.completed;
+    saveGoals(arr);renderStudyGoalEditor();renderGoalDash();renderCountdownRow();
+  };
 
   // --- 总入口渲染 ---
   function renderAllStudyUIs(){
