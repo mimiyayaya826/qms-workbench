@@ -4486,14 +4486,15 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
     </div>
     <div class="card">
       <h3><i data-lucide="plus" style="width:16px;height:16px;color:var(--success);stroke-width:2"></i>新增学习任务</h3>
-      <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1.2fr auto;gap:8px">
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr 0.8fr 1fr 1fr auto;gap:8px">
         <input id="stTodoTitle" type="text" placeholder="任务内容 · 如：做高数（一）2024年真题卷">
         <select id="stTodoGoal"><option value="">关联考试/目标</option></select>
         <select id="stTodoSub"><option value="">关联科目</option></select>
         <select id="stTodoPri">
           <option value="high">高优先级</option><option value="medium" selected>中</option><option value="low">低</option>
         </select>
-        <input id="stTodoDue" type="date" title="截止日期">
+        <input id="stTodoPlan" type="date" title="计划执行日期（安排哪天做）">
+        <input id="stTodoDue" type="date" title="截止日期（最晚完成）">
         <button onclick="studyAddTodo()" style="padding:7px 14px;background:linear-gradient(135deg,#2563eb,#0ea5e9);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:13px">添加</button>
       </div>
     </div>
@@ -13144,17 +13145,67 @@ renderPwds();
     const goalId=document.getElementById('stTodoGoal').value||'';
     const subjectId=document.getElementById('stTodoSub').value||'';
     const priority=document.getElementById('stTodoPri').value||'medium';
+    const planDate=document.getElementById('stTodoPlan').value||'';
     const dueDate=document.getElementById('stTodoDue').value||'';
     const arr=getTodos();
-    arr.unshift({id:uid('st'),title,goalId,subjectId,priority,dueDate,done:false,createdAt:Date.now()});
+    arr.unshift({id:uid('st'),title,goalId,subjectId,priority,planDate,dueDate,done:false,createdAt:Date.now()});
     saveTodos(arr);
     document.getElementById('stTodoTitle').value='';
+    document.getElementById('stTodoPlan').value='';
     document.getElementById('stTodoDue').value='';
     renderStudyTodos();renderDashBoard();
   };
   window.studyToggleTodo=function(id){const arr=getTodos();const t=arr.find(x=>x.id===id);if(!t)return;t.done=!t.done;saveTodos(arr);renderStudyTodos();renderDashBoard()};
   window.studyDeleteTodo=function(id){/* BUG1 FIX：删除学习任务 - 直接执行 */const arr=getTodos().filter(x=>x.id!==id);saveTodos(arr);renderStudyTodos();renderDashBoard()};
   window.studyFilterTodo=function(fl){saveState(Object.assign(getState(),{filterTodo:fl}));renderStudyTodos()};
+  function sortTodos(list){
+    const priOrder={'high':0,'medium':1,'low':2};
+    return list.slice().sort(function(a,b){
+      // 已完成排最后
+      if(a.done!==b.done)return a.done?1:-1;
+      // 无计划日期排最前（仅未完成）
+      if(!a.done){
+        const aNo=!a.planDate,bNo=!b.planDate;
+        if(aNo!==bNo)return aNo?-1:1;
+      }
+      // 按计划日期升序
+      if(a.planDate&&b.planDate&&a.planDate!==b.planDate)return a.planDate<b.planDate?-1:1;
+      // 按优先级
+      const pa=priOrder[a.priority]!==undefined?priOrder[a.priority]:1;
+      const pb=priOrder[b.priority]!==undefined?priOrder[b.priority]:1;
+      if(pa!==pb)return pa-pb;
+      // 按创建时间
+      return (a.createdAt||0)-(b.createdAt||0);
+    });
+  }
+  function todoItemHtml(t,opts){
+    opts=opts||{};
+    const g=findGoal(t.goalId);const s=findSubject(t.goalId,t.subjectId);
+    const ts=todayStr();
+    const overdue=!t.done&&t.dueDate&&t.dueDate<ts;
+    const priMap={'high':'🔴','medium':'🟡','low':'🟢'};
+    const doneStyle=t.done?'color:#94a3b8;text-decoration:line-through':'';
+    const bg=t.done?'#f8fafc':(overdue?'#fef2f2':'#fff');
+    const border=overdue?'1px solid #fecaca':'1px solid #e2e8f0';
+    let html='<div draggable="true" data-todo-id="'+t.id+'" class="todo-drag-item" style="padding:8px 10px;margin-bottom:6px;border-radius:8px;background:'+bg+';border:'+border+';cursor:grab">';
+    html+='<div style="display:flex;align-items:flex-start;gap:8px">';
+    html+='<input type="checkbox" '+(t.done?'checked':'')+' onchange="studyToggleTodo(\''+t.id+'\')" style="width:16px;height:16px;margin-top:2px;flex-shrink:0">';
+    html+='<div style="flex:1;min-width:0">';
+    html+='<div style="font-size:12px;font-weight:600;'+doneStyle+'">'+(priMap[t.priority]||'🟡')+' '+escHtml(t.title)+'</div>';
+    html+='<div style="font-size:10px;color:#64748b;margin-top:2px;display:flex;gap:8px;flex-wrap:wrap">';
+    if(g)html+='<span>🎯 '+escHtml(g.name)+'</span>';
+    if(s)html+='<span>📖 '+escHtml(s.name)+'</span>';
+    if(t.planDate)html+='<span style="color:'+(t.planDate===ts?'#0369a1':'#64748b')+'">📅 '+t.planDate+(t.planDate===ts?' (今天)':'')+'</span>';
+    if(t.dueDate)html+='<span style="'+(overdue?'color:#b91c1c;font-weight:700':'')+'">⏰ '+t.dueDate+(overdue?' 已逾期':'')+'</span>';
+    html+='</div>';
+    html+='</div>';
+    if(opts.showPlanBtn&&!t.planDate){
+      html+='<button onclick="studySetPlanToday(\''+t.id+'\')" style="padding:3px 8px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;cursor:pointer;font-size:10px;flex-shrink:0">→今天</button>';
+    }
+    html+='<button onclick="studyDeleteTodo(\''+t.id+'\')" style="padding:2px 6px;background:none;border:none;color:#b91c1c;cursor:pointer;font-size:14px;flex-shrink:0;opacity:.6" title="删除">×</button>';
+    html+='</div></div>';
+    return html;
+  }
   function renderStudyTodos(){window.renderStudyTodos=renderStudyTodos;
     const table=document.getElementById('studyTodosTable');if(!table)return;
     // select options
@@ -13178,32 +13229,178 @@ renderPwds();
     if(fPri)list=list.filter(t=>t.priority===fPri);
     if(kw)list=list.filter(t=>[t.title].some(v=>(v||'').toLowerCase().includes(kw)));
     document.querySelectorAll('#study .study-fil-btn').forEach(b=>b.style.background='#fff');
-    // 渲染表格
-    if(!list.length){table.innerHTML='<div class="record-empty">暂无学习任务。在上方表单里先加一条！</div>';return}
-    const priMap={'high':'🔴 高','medium':'🟡 中','low':'🟢 低'};
-    const header=`<tr>
-      <th style="width:44px">完成</th><th style="width:60px">优先级</th><th>任务内容</th>
-      <th style="width:120px">关联考试</th><th style="width:140px">科目</th>
-      <th style="width:110px">截止日期</th><th style="width:90px">操作</th>
-    </tr>`;
-    const rows=list.map(t=>{
-      const g=findGoal(t.goalId);const s=findSubject(t.goalId,t.subjectId);
-      const overdue=!t.done&&t.dueDate&&t.dueDate<ts;const today=!t.done&&t.dueDate===ts;
-      const dueStyle=overdue?'color:#b91c1c;font-weight:700':(today?'color:#b45309;font-weight:700':'');
-      const doneStyle=t.done?'color:#94a3b8;text-decoration:line-through':'color:#0f172a';
-      return `<tr>
-        <td style="text-align:center"><input type="checkbox" ${t.done?'checked':''} onchange="studyToggleTodo('${t.id}')" style="width:16px;height:16px"></td>
-        <td style="text-align:center;font-size:11px">${priMap[t.priority]||'🟡 中'}</td>
-        <td style="${doneStyle};font-size:12px"><b style="font-size:13px">${escHtml(t.title)}</b></td>
-        <td style="font-size:11px;color:#0f172a">${g?escHtml(g.name):'<span style="color:#94a3b8">未关联</span>'}</td>
-        <td style="font-size:11px;color:#334155">${s?escHtml(s.name):'<span style="color:#94a3b8">—</span>'}</td>
-        <td style="font-size:11px;text-align:center;${dueStyle}">${t.dueDate?escHtml(t.dueDate):'<span style="color:#94a3b8">无</span>'}${overdue?' 已逾期':(today?' 今日':'')}</td>
-        <td style="text-align:center">
-          <button onclick="studyDeleteTodo('${t.id}')" style="padding:3px 8px;border:1px solid #fecaca;background:#fff;color:#b91c1c;border-radius:6px;cursor:pointer;font-size:11px">删除</button>
-        </td>
-      </tr>`;
-    }).join('');
-    table.innerHTML=`<table style="font-size:12px">${header}${rows}</table>`;
+    // 排序
+    const sorted=sortTodos(list);
+    // 隐藏已完成开关
+    const hideDone=localStorage.getItem('study_hide_done')==='1';
+    // 今日任务
+    const todayTodos=sorted.filter(t=>!t.done&&t.planDate===ts);
+    const todayDone=sorted.filter(t=>t.done&&t.planDate===ts);
+    const todayTotal=todayTodos.length+todayDone.length;
+    // 逾期任务
+    const overdueTodos=sorted.filter(t=>!t.done&&t.dueDate&&t.dueDate<ts);
+    // 未安排日期
+    const noPlanTodos=sorted.filter(t=>!t.done&&!t.planDate);
+    // 未来7天（不含今天）
+    const weekDays=[];
+    for(let i=1;i<=6;i++){
+      const d=new Date();d.setDate(d.getDate()+i);
+      const ds=d.toISOString().slice(0,10);
+      const dayTodos=sorted.filter(t=>!t.done&&t.planDate===ds);
+      const weekday=['日','一','二','三','四','五','六'][d.getDay()];
+      weekDays.push({date:ds,label:'周'+weekday,short:(d.getMonth()+1)+'/'+d.getDate(),todos:dayTodos});
+    }
+    // 已完成（非今天）
+    const otherDone=sorted.filter(t=>t.done&&t.planDate!==ts);
+    // 折叠状态
+    const dayCollapsed=JSON.parse(localStorage.getItem('study_day_collapsed')||'{}');
+    const doneCollapsed=localStorage.getItem('study_done_collapsed')==='1';
+    // ========== 渲染 ==========
+    let html='<div style="display:grid;grid-template-columns:2fr 3fr;gap:16px;align-items:start">';
+    // ----- 左侧：今日任务 -----
+    html+='<div class="card" style="margin:0">';
+    html+='<h3 style="display:flex;justify-content:space-between;align-items:center"><span>📅 今日任务</span>';
+    html+='<span style="font-size:12px;font-weight:400;color:#64748b">'+todayDone.length+'/'+todayTotal+' 已完成</span></h3>';
+    // 进度条
+    if(todayTotal>0){
+      const pct=Math.round(todayDone.length/todayTotal*100);
+      html+='<div style="height:8px;background:#e2e8f0;border-radius:6px;margin-bottom:12px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,#10b981,#0ea5e9);border-radius:6px;transition:width .3s"></div></div>';
+    }
+    // 逾期提醒
+    if(overdueTodos.length>0){
+      html+='<div style="padding:8px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;margin-bottom:12px;font-size:12px;color:#b91c1c;font-weight:600">⚠ '+overdueTodos.length+' 个任务已逾期，请优先处理</div>';
+    }
+    // 今日任务列表
+    if(todayTodos.length===0&&todayDone.length===0){
+      html+='<div style="padding:20px;text-align:center;color:#94a3b8;font-size:12px">今天没有安排任务<br><span style="font-size:11px">在右侧"未安排日期"里点"→今天"安排任务吧</span></div>';
+    }else{
+      todayTodos.forEach(t=>{html+=todoItemHtml(t);});
+      if(todayDone.length>0){
+        html+='<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #e2e8f0">';
+        html+='<div onclick="studyToggleDoneCollapse()" style="cursor:pointer;font-size:11px;color:#64748b;margin-bottom:6px">✅ 今日已完成 ('+todayDone.length+') '+(doneCollapsed?'▶':'▼')+'</div>';
+        if(!doneCollapsed){todayDone.forEach(t=>{html+=todoItemHtml(t);});}
+        html+='</div>';
+      }
+    }
+    // 快速添加
+    html+='<div style="margin-top:12px;padding-top:10px;border-top:1px solid #e2e8f0">';
+    html+='<div style="display:flex;gap:6px">';
+    html+='<input id="stQuickTodo" type="text" placeholder="快速添加今日任务..." onkeydown="if(event.key===\'Enter\')studyQuickAddToday()" style="flex:1;padding:6px 10px;border:1px solid #cbd5e1;border-radius:7px;font-size:12px">';
+    html+='<button onclick="studyQuickAddToday()" style="padding:6px 14px;background:linear-gradient(135deg,#2563eb,#0ea5e9);color:#fff;border:none;border-radius:7px;cursor:pointer;font-weight:700;font-size:12px">添加</button>';
+    html+='</div></div>';
+    html+='</div>';
+    // ----- 右侧：本周任务清单 -----
+    html+='<div class="card" style="margin:0">';
+    html+='<h3 style="display:flex;justify-content:space-between;align-items:center">';
+    html+='<span>📆 本周任务清单</span>';
+    html+='<label style="font-size:11px;font-weight:400;color:#64748b;cursor:pointer;display:flex;align-items:center;gap:4px">';
+    html+='<input type="checkbox" '+(hideDone?'checked':'')+' onchange="studyToggleHideDone()" style="width:14px;height:14px">隐藏已完成';
+    html+='</label></h3>';
+    // 未安排日期
+    if(noPlanTodos.length>0){
+      html+='<div style="margin-bottom:12px">';
+      html+='<div style="font-size:12px;font-weight:700;color:#b45309;margin-bottom:6px">📌 未安排日期 ('+noPlanTodos.length+')</div>';
+      noPlanTodos.forEach(t=>{html+=todoItemHtml(t,{showPlanBtn:true});});
+      html+='</div>';
+    }
+    // 今天（在右侧也显示一次，方便对照）
+    const todayAll=sorted.filter(t=>!t.done&&t.planDate===ts);
+    if(todayAll.length>0){
+      html+='<div style="margin-bottom:10px">';
+      html+='<div style="font-size:12px;font-weight:700;color:#0369a1;margin-bottom:6px">📅 今天 ('+todayAll.length+')</div>';
+      todayAll.forEach(t=>{html+=todoItemHtml(t);});
+      html+='</div>';
+    }
+    // 未来6天
+    weekDays.forEach(function(day){
+      if(day.todos.length===0)return;
+      const collapsed=dayCollapsed[day.date];
+      html+='<div style="margin-bottom:8px">';
+      html+='<div onclick="studyToggleDayCollapse(\''+day.date+'\')" style="cursor:pointer;font-size:12px;font-weight:600;color:#475569;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center">';
+      html+='<span>📅 '+day.label+' '+day.short+' ('+day.todos.length+')</span>';
+      html+='<span style="font-size:10px;color:#94a3b8">'+(collapsed?'▶ 展开':'▼ 折叠')+'</span>';
+      html+='</div>';
+      if(!collapsed){day.todos.forEach(t=>{html+=todoItemHtml(t);});}
+      html+='</div>';
+    });
+    // 已完成（非今天）
+    if(otherDone.length>0&&!hideDone){
+      html+='<div style="margin-top:12px;padding-top:10px;border-top:1px dashed #e2e8f0">';
+      html+='<div onclick="studyToggleOtherDoneCollapse()" style="cursor:pointer;font-size:12px;font-weight:600;color:#64748b;margin-bottom:6px">✅ 已完成 ('+otherDone.length+') '+(doneCollapsed?'▶':'▼')+'</div>';
+      if(!doneCollapsed){otherDone.forEach(t=>{html+=todoItemHtml(t);});}
+      html+='</div>';
+    }
+    // 空状态
+    if(noPlanTodos.length===0&&todayAll.length===0&&weekDays.every(d=>d.todos.length===0)&&(hideDone||otherDone.length===0)){
+      html+='<div style="padding:20px;text-align:center;color:#94a3b8;font-size:12px">本周暂无任务安排</div>';
+    }
+    html+='</div>';
+    html+='</div>';
+    table.innerHTML=html;
+    // 初始化拖拽
+    initTodoDrag();
+  }
+  // 快捷添加今日任务
+  window.studyQuickAddToday=function(){
+    const input=document.getElementById('stQuickTodo');if(!input)return;
+    const title=(input.value||'').trim();if(!title){toast('请输入任务内容');return}
+    const arr=getTodos();
+    arr.unshift({id:uid('st'),title,goalId:'',subjectId:'',priority:'medium',planDate:todayStr(),dueDate:'',done:false,createdAt:Date.now()});
+    saveTodos(arr);input.value='';renderStudyTodos();renderDashBoard();
+  };
+  // 一键安排到今天
+  window.studySetPlanToday=function(id){
+    const arr=getTodos();const t=arr.find(x=>x.id===id);if(!t)return;
+    t.planDate=todayStr();saveTodos(arr);renderStudyTodos();
+  };
+  // 隐藏已完成开关
+  window.studyToggleHideDone=function(){
+    const cur=localStorage.getItem('study_hide_done')==='1';
+    localStorage.setItem('study_hide_done',cur?'0':'1');renderStudyTodos();
+  };
+  // 每天折叠切换
+  window.studyToggleDayCollapse=function(date){
+    const collapsed=JSON.parse(localStorage.getItem('study_day_collapsed')||'{}');
+    collapsed[date]=!collapsed[date];
+    localStorage.setItem('study_day_collapsed',JSON.stringify(collapsed));renderStudyTodos();
+  };
+  // 已完成折叠切换
+  window.studyToggleDoneCollapse=function(){
+    const cur=localStorage.getItem('study_done_collapsed')==='1';
+    localStorage.setItem('study_done_collapsed',cur?'0':'1');renderStudyTodos();
+  };
+  window.studyToggleOtherDoneCollapse=function(){
+    const cur=localStorage.getItem('study_done_collapsed')==='1';
+    localStorage.setItem('study_done_collapsed',cur?'0':'1');renderStudyTodos();
+  };
+  // 拖拽排序
+  function initTodoDrag(){
+    const items=document.querySelectorAll('.todo-drag-item');
+    let dragId=null;
+    items.forEach(function(item){
+      item.addEventListener('dragstart',function(e){dragId=item.getAttribute('data-todo-id');item.style.opacity='0.4';});
+      item.addEventListener('dragend',function(){item.style.opacity='1';});
+      item.addEventListener('dragover',function(e){e.preventDefault();item.style.borderTop='2px solid #0ea5e9';});
+      item.addEventListener('dragleave',function(){item.style.borderTop='';});
+      item.addEventListener('drop',function(e){
+        e.preventDefault();item.style.borderTop='';
+        const targetId=item.getAttribute('data-todo-id');
+        if(!dragId||dragId===targetId)return;
+        const arr=getTodos();
+        const dragIdx=arr.findIndex(x=>x.id===dragId);
+        const targetIdx=arr.findIndex(x=>x.id===targetId);
+        if(dragIdx<0||targetIdx<0)return;
+        const [moved]=arr.splice(dragIdx,1);
+        arr.splice(targetIdx,0,moved);
+        // 如果拖到同一天，更新 createdAt 以维持排序
+        const dragTodo=arr.find(x=>x.id===dragId);
+        const targetTodo=arr.find(x=>x.id===targetId);
+        if(dragTodo&&targetTodo&&dragTodo.planDate===targetTodo.planDate){
+          dragTodo.createdAt=Date.now();
+        }
+        saveTodos(arr);renderStudyTodos();
+      });
+    });
   }
 
   // --- 打卡 ---
