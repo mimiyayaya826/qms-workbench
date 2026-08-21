@@ -1218,7 +1218,17 @@ table tbody tr:hover td{
 
   <!-- 快速入口（可拖拽 + 角标）· 最上方 -->
   <div class="card">
-    <h3><i data-lucide="zap" style="width:16px;height:16px;color:var(--lemon);stroke-width:2"></i>快速入口 <span style="font-size:12px;font-weight:400;color:var(--text-muted)">（按住卡片右上角 ☰ 拖动排序）</span></h3>
+    <h3 style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <i data-lucide="zap" style="width:16px;height:16px;color:var(--lemon);stroke-width:2"></i>
+      快速入口
+      <span style="font-size:12px;font-weight:400;color:var(--text-muted)">（按住卡片右上角 ☰ 拖动排序）</span>
+      <button type="button" onclick="try{if(window.renderQuickGrid){renderQuickGrid();}else{alert('快速入口函数未加载，请刷新页面');}}catch(e){alert('刷新失败：'+e.message)}"
+        style="margin-left:auto;padding:3px 10px;border:1px solid #bae6fd;background:#f0f9ff;color:#0369a1;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600"
+        title="快速入口空白时点我">🔄 刷新快速入口</button>
+      <button type="button" onclick="try{localStorage.removeItem('qms_quick_order_v2');localStorage.removeItem('qms_quick_order_ver');localStorage.removeItem('qms_quick_groups');if(window.renderQuickGrid){renderQuickGrid();}else{location.reload();}}catch(e){alert('清理失败：'+e.message)}"
+        style="padding:3px 10px;border:1px solid #fed7aa;background:#fff7ed;color:#9a3412;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600"
+        title="排序/折叠缓存异常时点我（数据不会丢）">🧹 清理排序缓存</button>
+    </h3>
     <div id="quickGrid"></div>
   </div>
 
@@ -15017,6 +15027,72 @@ function mreviewCopy(){
       }
     }
   });
+})();
+</script>
+<script>
+/* ================================================================
+   🚀 启动兜底 v2：强制渲染快速入口 + 首页首屏初始化（零侵入）
+   v2 修复：不再判断"是否已有内容"，每次都强制重绘，避免旧缓存
+   DOM 残留导致判断失误跳过渲染；并追加版本号徽标让用户一眼确认
+   是否加载了最新代码。
+================================================================ */
+(function(){
+  var _VKEY='QMS_v20260821c_快速入口强制渲染版';
+  // ---- 注入版本徽标（右上角/顶栏可见，没看到就说明加载的是旧缓存！）----
+  try{
+    var _hd=document.querySelector('.topbar, .app-header, header, body');
+    if(_hd){
+      var _vb=document.createElement('div');
+      _vb.id='__qms_ver_badge';
+      _vb.style.cssText='position:fixed;right:12px;bottom:12px;z-index:999999;padding:5px 10px;background:linear-gradient(135deg,#fef3c7,#fde68a);color:#92400e;border:1px solid #fbbf24;border-radius:10px;font-size:11px;font-weight:700;box-shadow:0 4px 12px rgba(251,191,36,.35);user-select:none;cursor:pointer;';
+      _vb.title='点击刷新快速入口 · 没看到这个小黄标=加载了旧缓存/旧页面';
+      _vb.innerHTML='🐱 QMS Build 2026-08-21c &nbsp;|&nbsp;点我↺刷新快速入口';
+      _vb.onclick=function(){try{window.renderQuickGrid&&renderQuickGrid();}catch(e){alert('刷新失败：'+e.message)}};
+      document.body.appendChild(_vb);
+    }
+  }catch(_vb_){}
+  function _boots(force){
+    try{
+      // ===== 【关键修复 v2】不再判断已有内容，直接强制重新渲染 =====
+      // 旧逻辑：if(qg && (!qg.innerHTML || ...)) 会被残留DOM欺骗跳过
+      // 新逻辑：只要 grid 存在 + renderQuickGrid 函数存在，就强制重绘
+      var qg=document.getElementById('quickGrid');
+      if(qg && window.renderQuickGrid){
+        try{
+          window.renderQuickGrid();
+        }catch(_qg_e_){
+          try{console.error('[boot] renderQuickGrid:',_qg_e_)}catch(_){}
+          // 连函数调用都失败的最后兜底：直接写死一个提示
+          try{
+            qg.innerHTML='<div style="padding:22px 18px;border:2px dashed #dc2626;border-radius:14px;background:#fef2f2;text-align:center">'
+              +'<div style="font-size:30px;margin-bottom:6px">🚨</div>'
+              +'<div style="font-size:14px;font-weight:800;color:#991b1b;margin-bottom:8px">快速入口渲染失败</div>'
+              +'<div style="font-size:12px;color:#7f1d1d;margin-bottom:14px;line-height:1.7">错误：'+(String(_qg_e_&&_qg_e_.message||_qg_e_)).replace(/[<>&]/g,' ')+'<br>数据安全不受影响，点击右下角小黄标或下方按钮重试：</div>'
+              +'<button type="button" onclick="try{renderQuickGrid()}catch(e){alert(e.message)}" style="padding:8px 20px;background:#dc2626;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700">🔧 重新渲染</button>'
+              +'<button type="button" onclick="location.reload()" style="padding:8px 20px;background:#fff;color:#1d4ed8;border:1px solid #93c5fd;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;margin-left:8px">🔄 刷新页面</button>'
+              +'</div>';
+          }catch(_f_){}
+        }
+      }else if(qg){
+        // grid 存在但函数不存在（脚本可能还没加载完）→ 写个加载中提示
+        try{
+          if(!qg.innerHTML || qg.innerHTML.trim().length<20){
+            qg.innerHTML='<div style="padding:24px;text-align:center;color:#64748b;font-size:13px"><span style="display:inline-block;animation:spin 1s linear infinite;margin-right:8px">⏳</span>快速入口加载中...若3秒后仍显示本提示，请<span style="color:#2563eb;cursor:pointer;text-decoration:underline" onclick="location.reload()">点这里刷新</span></div>';
+          }
+        }catch(_){}
+      }
+      // 2) 若当前无任何模块展示（首次启动漏切首页）→ 手动触发
+      try{
+        var hasActive=document.querySelector('.nav-item.active, .module-section.active');
+        if(!hasActive && window.showModule){ window.showModule('dashboard'); }
+      }catch(_sm_e_){}
+    }catch(_top_){ try{console.error('[boot] top:',_top_)}catch(_){} }
+  }
+  // 4 次异步强制渲染（不再依赖"已有内容"的判断，每次都执行）
+  try{ _boots(true); }catch(_){}                                  // 立即
+  setTimeout(function(){ try{_boots(true)}catch(_){} }, 300);    // 300ms
+  setTimeout(function(){ try{_boots(true)}catch(_){} }, 1800);   // 1800ms
+  setTimeout(function(){ try{_boots(true)}catch(_){} }, 4000);   // 4000ms（终极兜底）
 })();
 </script>
 </body>
