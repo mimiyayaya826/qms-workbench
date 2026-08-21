@@ -1218,17 +1218,7 @@ table tbody tr:hover td{
 
   <!-- 快速入口（可拖拽 + 角标）· 最上方 -->
   <div class="card">
-    <h3 style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-      <i data-lucide="zap" style="width:16px;height:16px;color:var(--lemon);stroke-width:2"></i>
-      快速入口
-      <span style="font-size:12px;font-weight:400;color:var(--text-muted)">（按住卡片右上角 ☰ 拖动排序）</span>
-      <button type="button" onclick="try{if(window.renderQuickGrid){renderQuickGrid();}else{alert('快速入口函数未加载，请刷新页面');}}catch(e){alert('刷新失败：'+e.message)}"
-        style="margin-left:auto;padding:3px 10px;border:1px solid #bae6fd;background:#f0f9ff;color:#0369a1;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600"
-        title="快速入口空白时点我">🔄 刷新快速入口</button>
-      <button type="button" onclick="try{localStorage.removeItem('qms_quick_order_v2');localStorage.removeItem('qms_quick_order_ver');localStorage.removeItem('qms_quick_groups');if(window.renderQuickGrid){renderQuickGrid();}else{location.reload();}}catch(e){alert('清理失败：'+e.message)}"
-        style="padding:3px 10px;border:1px solid #fed7aa;background:#fff7ed;color:#9a3412;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600"
-        title="排序/折叠缓存异常时点我（数据不会丢）">🧹 清理排序缓存</button>
-    </h3>
+    <h3><i data-lucide="zap" style="width:16px;height:16px;color:var(--lemon);stroke-width:2"></i>快速入口 <span style="font-size:12px;font-weight:400;color:var(--text-muted)">（按住卡片右上角 ☰ 拖动排序）</span></h3>
     <div id="quickGrid"></div>
   </div>
 
@@ -4241,14 +4231,9 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
     <h3><i data-lucide="clipboard-list" style="width:16px;height:16px;color:var(--primary);stroke-width:2"></i>审核记录台账 <span style="font-size:12px;font-weight:400;color:var(--text-muted)">（体考/机构审核/内审/飞行检查）</span></h3>
     <div id="auditTypeFilterBar" style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
       <label style="font-size:12px;color:var(--text-muted);font-weight:600">按类型筛选：</label>
-      <select id="auditTypeSel" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;min-width:160px">
+      <select id="auditTypeSel" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;min-width:180px">
         <option value="">全部类型</option>
       </select>
-      <label style="font-size:12px;color:var(--text-muted);font-weight:600;margin-left:6px">按单条审核：</label>
-      <select id="auditRecordSel" title="选择某一次具体审核，下方不符合项自动联动筛选" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;min-width:260px">
-        <option value="">全部审核记录</option>
-      </select>
-      <button type="button" onclick="clearAuditAllFilters()" title="一键清除所有筛选" style="padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:#fff;cursor:pointer;font-size:12px">🧹 清除筛选</button>
       <span id="auditTypeFilterMsg" style="font-size:12px;color:var(--primary)"></span>
     </div>
     <div id="auditFormBox" style="margin-bottom:14px"></div>
@@ -6129,14 +6114,6 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
   }
   function saveAuditLessons(arr){localStorage.setItem('qms_audit_lessons',JSON.stringify(arr))}
 
-  // --- 展开/折叠状态持久化（按用户选择记忆，存 localStorage，不动现有记录数据）---
-  const AUDIT_PREFS_KEY='qms_audit_prefs';
-  function getAuditPrefs(){try{return JSON.parse(localStorage.getItem(AUDIT_PREFS_KEY)||'{}')}catch(e){return {}}}
-  function getAuditPref(key,def){const p=getAuditPrefs();return Object.prototype.hasOwnProperty.call(p,key)?p[key]:def}
-  function setAuditPref(key,val){const p=getAuditPrefs();p[key]=val;localStorage.setItem(AUDIT_PREFS_KEY,JSON.stringify(p))}
-  // 新增审核记录临时标记：刚 addAuditRecord 的新记录ID，renderAuditList 时默认展开（仅本次 render 生效）
-  let __lastNewAuditRecId=null;
-
   // --- 审核统计 ---
   function renderAuditStats(){
     const box=document.getElementById('auditStats');if(!box)return;
@@ -6200,10 +6177,8 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
     const type=val('auType'),org=val('auOrg'),auditor=val('auAuditor'),date=val('auDate'),scope=val('auScope'),result=val('auResult'),notes=val('auNotes'),submit=val('auSubmit'),accept=val('auAccept');
     if(!date){toast('请选择审核日期');return}
     const recs=getAuditRecords();
-    const newId='ar'+Date.now();
-    recs.unshift({id:newId,type,org,auditor,date,submit,accept,scope,result,notes,created:Date.now()});
+    recs.unshift({id:'ar'+Date.now(),type,org,auditor,date,submit,accept,scope,result,notes,created:Date.now()});
     saveAuditRecords(recs);
-    __lastNewAuditRecId=newId;
     // 清空新增表单，方便连续录入
     ['auOrg','auAuditor','auDate','auSubmit','auAccept','auScope','auNotes'].forEach(function(id){const el=document.getElementById(id);if(el)el.value='';});
     renderAuditAll();
@@ -6245,7 +6220,6 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
     function rowHtml(r){
       const ncCount=getAuditNCs().filter(n=>n.auditId===r.id).length;
       const resultStyle=r.result==='通过'?'color:var(--success)':(r.result==='未通过'?'color:var(--danger)':(r.result==='有条件通过'?'color:var(--warning)':'color:var(--text-muted)'));
-      const detailExpanded=__lastNewAuditRecId===r.id || getAuditPref('ard_'+r.id,false);
       return `<tr>
         <td>${selHtml(r.id,'type',r.type,typeOpts,'')}</td>
         <td><input type="text" value="${escHtml(r.org||'')}" onblur="updateAuditField('${r.id}','org',this.value)" style="width:100%;padding:3px 5px;border:1px solid var(--border);border-radius:5px;font-size:12px"></td>
@@ -6257,18 +6231,17 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
         <td>${selHtml(r.id,'result',r.result,resultOpts,resultStyle)}</td>
         <td>
           <button onclick="toggleAuditDetail('${r.id}')" style="padding:2px 8px;border:1px solid var(--border);border-radius:5px;background:#fff;cursor:pointer;font-size:11px">详情</button>
-          <button onclick="applyAuditRecordFilter('${r.id}')" title="下方不符合项栏目自动筛选出这次审核的不符合项" style="padding:2px 8px;border:1px solid var(--primary);border-radius:5px;background:${auditRecordFilter===r.id?'var(--primary)':'#fff'};color:${auditRecordFilter===r.id?'#fff':'var(--primary)'};cursor:pointer;font-size:11px">🔗只看这条</button>
           <button onclick="deleteAuditRecord('${r.id}')" style="padding:2px 8px;border:1px solid var(--danger);border-radius:5px;background:#fff;color:var(--danger);cursor:pointer;font-size:11px">🗑</button>
         </td>
       </tr>
-      <tr id="auditDetail_${r.id}" style="${detailExpanded?'':'display:none'}background:var(--bg-light)">
+      <tr id="auditDetail_${r.id}" style="display:none;background:var(--bg-light)">
         <td colspan="9" style="padding:10px 14px">
           <div style="margin-bottom:6px"><strong>备注（可编辑）：</strong><textarea onblur="updateAuditField('${r.id}','notes',this.value)" style="width:100%;min-height:50px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;resize:vertical">${escHtml(r.notes||'')}</textarea></div>
-          <div><strong>关联不符合项：</strong>${ncCount>0?`<a href="javascript:void(0)" onclick="applyAuditRecordFilter('${r.id}')" style="color:var(--primary);text-decoration:underline;font-weight:600" title="点击筛选，下方只看这次审核的不符合项">${ncCount}个</a>`:'<span style="color:var(--text-muted)">无</span>'}</div>
+          <div><strong>关联不符合项：</strong>${ncCount>0?ncCount+'个':'<span style="color:var(--text-muted)">无</span>'}</div>
         </td>
       </tr>`;
     }
-    // ===== 按"审核类型"自动分组，每组独立可折叠（偏好记忆 + 默认全关）=====
+    // ===== 按"审核类型"自动分组，每组独立可折叠 =====
     const groups={};
     sorted.forEach(r=>{(groups[r.type]=groups[r.type]||[]).push(r);});
     const typeNames=Object.keys(groups).sort();
@@ -6284,14 +6257,10 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
       +'<th style="padding:8px 6px;border-bottom:1px solid var(--border);text-align:left;font-weight:700;color:#1e40af">操作</th>'
       +'</tr></thead>';
     let html='';
-    typeNames.forEach(t=>{
+    typeNames.forEach((t,gi)=>{
       const items=groups[t];
       const body=items.map(rowHtml).join('');
-      const grpOpen=getAuditPref('ag_'+t,false);
-      // 如果有新增的记录在这个组里，默认强制展开组（方便用户找到新记录）
-      const needExpandByNew = __lastNewAuditRecId && items.some(x=>x.id===__lastNewAuditRecId);
-      const actualOpen = needExpandByNew ? true : grpOpen;
-      html+=`<details class="audit-group" data-group-type="${escHtml(t)}" ${actualOpen?'open':''} style="border:1px solid var(--border);border-radius:8px;margin-bottom:10px;overflow:hidden;background:#fff">
+      html+=`<details class="audit-group" ${gi===0?'open':''} style="border:1px solid var(--border);border-radius:8px;margin-bottom:10px;overflow:hidden;background:#fff">
         <summary style="cursor:pointer;padding:10px 14px;background:var(--bg-light);font-size:13px;font-weight:700;color:var(--primary-dark);display:flex;align-items:center;gap:8px">
           <span style="transition:transform .15s" class="ag-chev">▾</span>
           <span>📂 ${escHtml(t)}</span>
@@ -6302,49 +6271,25 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
       </details>`;
     });
     box.innerHTML=html;
-    // 绑定 details 的 toggle 事件（展开/折叠后保存偏好）
-    try{
-      box.querySelectorAll('details.audit-group').forEach(function(det){
-        det.addEventListener('toggle',function(){
-          const t=this.getAttribute('data-group-type');
-          if(t){setAuditPref('ag_'+t,this.open?true:false)}
-        });
-      });
-    }catch(_e_){}
   }
   function updateAuditRecordDate(id,val){
     updateAuditField(id,'date',val);
   }
   function toggleAuditDetail(id){
     const el=document.getElementById('auditDetail_'+id);
-    if(!el)return;
-    const nowHidden=el.style.display==='none';
-    el.style.display=nowHidden?'':'none';
-    // 保存单条审核记录详情行的偏好（展开=true / 折叠=false）
-    try{setAuditPref('ard_'+id,nowHidden?true:false)}catch(_e_){}
+    if(el)el.style.display=el.style.display==='none'?'':'none';
   }
 
   // --- 不符合项与整改 ---
   function renderNcForm(){
     const box=document.getElementById('ncFormBox');if(!box)return;
     let recs=getAuditRecords();
-    // 有具体审核筛选时，始终包含被锁定的那条（即使类型筛选排除了它，也不能漏）
     if(auditTypeFilter){recs=recs.filter(r=>r.type===auditTypeFilter);}
-    if(auditRecordFilter){
-      const locked=getAuditRecords().find(r=>r.id===auditRecordFilter);
-      if(locked && !recs.some(x=>x.id===locked.id)){recs=[locked,...recs];}
-    }
-    // 默认选中：优先锁定当前具体审核记录
-    const selDefault=auditRecordFilter||'';
-    const selLocked=!!auditRecordFilter;
-    const recOpts=recs.length>0?recs.map(r=>`<option value="${r.id}"${r.id===selDefault?' selected':''}>${escHtml(r.date||'')} ${escHtml(r.type||'')}（${escHtml(r.org||'—')}）</option>`).join('')
-      :'<option value="">'+(auditTypeFilter?'当前筛选类型下暂无审核记录，请先清除筛选或先添加对应类型审核':'请先添加审核记录')+'</option>';
-    const disabledAttr=selLocked?' disabled style="width:100%;padding:6px 8px;border:1px solid var(--primary);border-radius:6px;font-size:12px;background:#eff6ff;color:var(--primary-dark);cursor:not-allowed"':' style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px"';
-    const lockHint=selLocked?' <span title="已在上方锁定本次审核，新增的不符合项自动关联到该审核" style="color:var(--primary);font-weight:600">🔒已锁定</span>':'';
+    const recOpts=recs.length>0?recs.map(r=>`<option value="${r.id}">${r.date} ${r.type}（${r.org||'—'}）</option>`).join(''):'<option value="">'+(auditTypeFilter?'当前筛选类型下暂无审核记录，请先清除筛选或先添加对应类型审核':'请先添加审核记录')+'</option>';
     box.innerHTML=`<details style="border:1px solid var(--border);border-radius:8px;padding:0;background:var(--bg-light)">
       <summary style="padding:10px 14px;cursor:pointer;font-size:13px;font-weight:600;color:var(--primary-dark)">➕ 新增不符合项</summary>
       <div style="padding:12px 14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
-        <div><label style="font-size:11px;color:var(--text-muted)">关联审核记录${lockHint}</label><select id="ncAuditId"${disabledAttr}>${recOpts}</select>${selLocked?'<input type="hidden" id="ncAuditIdHidden" value="'+escAttr(auditRecordFilter)+'">':''}</div>
+        <div><label style="font-size:11px;color:var(--text-muted)">关联审核记录</label><select id="ncAuditId" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px">${recOpts}</select></div>
         <div><label style="font-size:11px;color:var(--text-muted)">不符合等级</label>
           <select id="ncLevel" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px">
             <option value="严重">🔴 严重（影响产品安全/体系有效性）</option>
@@ -6356,15 +6301,12 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
         <div style="grid-column:1/-1"><label style="font-size:11px;color:var(--text-muted)">不符合描述</label><textarea id="ncDesc" placeholder="详细描述审核发现的不符合情况..." style="width:100%;min-height:50px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;resize:vertical"></textarea></div>
         <div style="grid-column:1/-1"><label style="font-size:11px;color:var(--text-muted)">根本原因分析</label><textarea id="ncRoot" placeholder="用5Why/鱼骨图等方法分析根本原因..." style="width:100%;min-height:50px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;resize:vertical"></textarea></div>
         <div style="grid-column:1/-1"><label style="font-size:11px;color:var(--text-muted)">整改措施</label><textarea id="ncCorrective" placeholder="纠正+纠正措施（消除根本原因）..." style="width:100%;min-height:50px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;resize:vertical"></textarea></div>
-        <div style="grid-column:1/-1"><button type="button" onclick="addNC()" style="padding:8px 20px;background:var(--primary);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500">💾 保存不符合项</button></div>
+        <div style="grid-column:1/-1"><button onclick="addNC()" style="padding:8px 20px;background:var(--primary);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500">💾 保存不符合项</button></div>
       </div>
     </details>`;
   }
   function addNC(){
-    // 锁定时用 hidden 值，防止 disabled select 取不到
-    const auditIdHidden=document.getElementById('ncAuditIdHidden');
-    const auditId=auditIdHidden?auditIdHidden.value:val('ncAuditId');
-    const level=val('ncLevel'),clause=val('ncClause'),desc=val('ncDesc'),root=val('ncRoot'),corrective=val('ncCorrective'),due=val('ncDue');
+    const auditId=val('ncAuditId'),level=val('ncLevel'),clause=val('ncClause'),desc=val('ncDesc'),root=val('ncRoot'),corrective=val('ncCorrective'),due=val('ncDue');
     if(!auditId){toast('请先在上方添加审核记录并关联');return}
     if(!desc){toast('请填写不符合描述');return}
     const ncs=getAuditNCs();
@@ -6391,95 +6333,51 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
     const box=document.getElementById('ncList');if(!box)return;
     const allNcs=getAuditNCs();const recs=getAuditRecords();
     let ncs=allNcs;
-    // 优先级：先按具体审核记录筛选（需求10），再按类型筛选兜底
-    if(auditRecordFilter){
-      ncs=allNcs.filter(n=>n.auditId===auditRecordFilter);
-    }else if(auditTypeFilter){
+    if(auditTypeFilter){
       const ids=new Set(recs.filter(r=>r.type===auditTypeFilter).map(r=>r.id));
       ncs=allNcs.filter(n=>ids.has(n.auditId));
     }
-    let emptyHint='暂无不符合项记录';
-    if(auditRecordFilter){const r=recs.find(x=>x.id===auditRecordFilter);emptyHint='本次审核「'+(r?_auditLabel(r):'—')+'」暂无不符合项，做得漂亮 ✨';}
-    else if(auditTypeFilter){emptyHint='该类型关联审核下暂无不符合项记录';}
-    if(ncs.length===0){box.innerHTML='<div style="padding:20px;text-align:center;color:var(--text-muted)">'+emptyHint+'</div>';return}
+    if(ncs.length===0){box.innerHTML='<div style="padding:20px;text-align:center;color:var(--text-muted)">'+(auditTypeFilter?'该类型关联审核下暂无不符合项记录':'暂无不符合项记录')+'</div>';return}
     const today=new Date();today.setHours(0,0,0,0);
-    // 可选项
-    const LEVEL_OPTS=[['严重','🔴 严重（影响产品安全/体系有效性）'],['一般','🟡 一般（不符合条款但风险可控）'],['观察项','🔵 观察项（建议改进）']];
-    const STATUS_OPTS=[['open','待整改'],['progress','整改中'],['closed','已关闭']];
-    const recMap={};recs.forEach(r=>{recMap[r.id]=r;});
-    const recOptsAll=recs.length>0?recs.map(r=>`<option value="${r.id}">${escHtml(r.date||'')} ${escHtml(r.type||'')}（${escHtml(r.org||'—')}）</option>`).join(''):'';
     function rowHtml(n){
-      const rec=recMap[n.auditId];
+      const rec=recs.find(r=>r.id===n.auditId);
       const levelCls=n.level==='严重'?'background:#fef2f2;color:var(--danger)':(n.level==='一般'?'background:#fefce8;color:var(--warning)':'background:#eff6ff;color:var(--primary)');
       const dueOverdue=n.due&&n.status!=='closed'&&new Date(n.due)<today;
-      const statusOpts=`<select onchange="updateNCField('${n.id}','status',this.value)" style="padding:3px 6px;border:1px solid var(--border);border-radius:5px;font-size:11px;background:#fff">`
-        +STATUS_OPTS.map(s=>`<option value="${s[0]}" ${n.status===s[0]?'selected':''}>${s[1]}</option>`).join('')
-        +`</select>`;
-      const detailOpen=getAuditPref('nd_'+n.id,false);
+      const statusOpts=`<select onchange="updateNCField('${n.id}','status',this.value)" style="padding:3px 6px;border:1px solid var(--border);border-radius:5px;font-size:11px;background:#fff">
+        <option value="open" ${n.status==='open'?'selected':''}>待整改</option>
+        <option value="progress" ${n.status==='progress'?'selected':''}>整改中</option>
+        <option value="closed" ${n.status==='closed'?'selected':''}>已关闭</option>
+      </select>`;
       return `<tr>
-        <td><span style="padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;${levelCls}">${escHtml(n.level)}</span></td>
-        <td style="font-size:11px">${rec?`${escHtml(rec.date)}<br>${escHtml(rec.type)}`:'<span style="color:var(--text-muted)">未关联</span>'}</td>
+        <td><span style="padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;${levelCls}">${n.level}</span></td>
+        <td style="font-size:11px">${rec?`${rec.date}<br>${escHtml(rec.type)}`:'<span style="color:var(--text-muted)">未关联</span>'}</td>
         <td style="font-size:11px">${escHtml(n.clause||'—')}</td>
         <td style="font-size:11px;max-width:180px">${escHtml(n.desc)}</td>
         <td style="font-size:11px;max-width:180px">${escHtml(n.corrective||'—')}</td>
-        <td style="font-size:11px;${dueOverdue?'color:var(--danger);font-weight:600':''}">${escHtml(n.due||'—')}${dueOverdue?'<br>⚠逾期':''}</td>
+        <td style="font-size:11px;${dueOverdue?'color:var(--danger);font-weight:600':''}">${n.due||'—'}${dueOverdue?'<br>⚠逾期':''}</td>
         <td>${statusOpts}</td>
-        <td style="font-size:11px">${n.status==='closed'?`✓ ${escHtml(n.verifyDate||'')}`:'—'}</td>
+        <td style="font-size:11px">${n.status==='closed'?`✓ ${n.verifyDate||''}`:'—'}</td>
         <td>
-          <button onclick="toggleNcDetail('${n.id}')" style="padding:2px 8px;border:1px solid var(--border);border-radius:5px;background:#fff;cursor:pointer;font-size:11px">详情/编辑</button>
+          <button onclick="toggleNcDetail('${n.id}')" style="padding:2px 8px;border:1px solid var(--border);border-radius:5px;background:#fff;cursor:pointer;font-size:11px">详情</button>
           <button onclick="deleteNC('${n.id}')" style="padding:2px 8px;border:1px solid var(--danger);border-radius:5px;background:#fff;color:var(--danger);cursor:pointer;font-size:11px">🗑</button>
         </td>
       </tr>
-      <tr id="ncDetail_${n.id}" style="${detailOpen?'':'display:none'}background:var(--bg-light)">
-        <td colspan="9" style="padding:12px 14px">
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px 14px">
-            <div><label style="display:block;font-size:11px;font-weight:700;color:#0c4a6e;margin-bottom:4px">关联审核记录 <span style="color:#64748b;font-weight:400">（可改）</span></label>
-              <select onchange="updateNCField('${n.id}','auditId',this.value)" style="width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:5px;font-size:12px;background:#fff">
-                ${rec?`<option value="${escAttr(n.auditId)}" selected>${escHtml((rec.date||'')+' '+(rec.type||'')+'（'+(rec.org||'—')+'）')}</option>`:''}
-                ${recOptsAll}
-              </select>
-            </div>
-            <div><label style="display:block;font-size:11px;font-weight:700;color:#0c4a6e;margin-bottom:4px">不符合等级 <span style="color:#64748b;font-weight:400">（可改）</span></label>
-              <select onchange="updateNCField('${n.id}','level',this.value)" style="width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:5px;font-size:12px;background:#fff">
-                ${LEVEL_OPTS.map(o=>`<option value="${o[0]}" ${n.level===o[0]?'selected':''}>${o[1]}</option>`).join('')}
-              </select>
-            </div>
-            <div><label style="display:block;font-size:11px;font-weight:700;color:#0c4a6e;margin-bottom:4px">不符合条款 <span style="color:#64748b;font-weight:400">（可改）</span></label>
-              <input type="text" value="${escHtml(n.clause||'')}" onblur="updateNCField('${n.id}','clause',this.value)" placeholder="如：MDR Art.10(9) / GMP §35" style="width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:5px;font-size:12px">
-            </div>
-            <div><label style="display:block;font-size:11px;font-weight:700;color:#0c4a6e;margin-bottom:4px">整改期限 <span style="color:#64748b;font-weight:400">（可改）</span></label>
-              <input type="date" value="${escHtml(n.due||'')}" onchange="updateNCField('${n.id}','due',this.value)" style="width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:5px;font-size:12px">
-            </div>
-            <div style="grid-column:1/-1"><label style="display:block;font-size:11px;font-weight:700;color:#0c4a6e;margin-bottom:4px">不符合事实描述 <span style="color:#64748b;font-weight:400">（可改，原来只能改时间现在全开放）</span></label>
-              <textarea onblur="updateNCField('${n.id}','desc',this.value)" placeholder="详细描述不符合事实、证据、受审部门..." style="width:100%;min-height:60px;padding:6px 8px;border:1px solid var(--border);border-radius:5px;font-size:12px;resize:vertical">${escHtml(n.desc||'')}</textarea>
-            </div>
-            <div style="grid-column:1/-1"><label style="display:block;font-size:11px;font-weight:700;color:#0c4a6e;margin-bottom:4px">根本原因分析 <span style="color:#64748b;font-weight:400">（可改）</span></label>
-              <textarea onblur="updateNCField('${n.id}','root',this.value)" placeholder="用 5 Why / 鱼骨图 分析根本原因..." style="width:100%;min-height:60px;padding:6px 8px;border:1px solid var(--border);border-radius:5px;font-size:12px;resize:vertical">${escHtml(n.root||'')}</textarea>
-            </div>
-            <div style="grid-column:1/-1"><label style="display:block;font-size:11px;font-weight:700;color:#0c4a6e;margin-bottom:4px">整改措施（纠正+纠正措施） <span style="color:#64748b;font-weight:400">（可改）</span></label>
-              <textarea onblur="updateNCField('${n.id}','corrective',this.value)" placeholder="即时纠正（消除当前问题）+ 纠正措施（消除根本原因，防再发）+ 预防措施横向展开..." style="width:100%;min-height:70px;padding:6px 8px;border:1px solid var(--border);border-radius:5px;font-size:12px;resize:vertical">${escHtml(n.corrective||'')}</textarea>
-            </div>
-            <div style="grid-column:1/-1;border-top:1px dashed var(--border);margin-top:6px;padding-top:10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px 14px">
-              <div><label style="display:block;font-size:11px;font-weight:700;color:#0c4a6e;margin-bottom:4px">状态 <span style="color:#64748b;font-weight:400">（可改）</span></label>
-                <select onchange="updateNCField('${n.id}','status',this.value)" style="width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:5px;font-size:12px;background:#fff">
-                  ${STATUS_OPTS.map(o=>`<option value="${o[0]}" ${n.status===o[0]?'selected':''}>${o[1]}</option>`).join('')}
-                </select>
-              </div>
-              <div><label style="display:block;font-size:11px;font-weight:700;color:#0c4a6e;margin-bottom:4px">验证日期 <span style="color:#64748b;font-weight:400">（可改，关闭必填）</span></label>
-                <input type="date" value="${escHtml(n.verifyDate||'')}" onchange="updateNCField('${n.id}','verifyDate',this.value)" style="width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:5px;font-size:12px">
-              </div>
-              <div style="grid-column:1/-1"><label style="display:block;font-size:11px;font-weight:700;color:#0c4a6e;margin-bottom:4px">验证结果（关闭时填写） <span style="color:#64748b;font-weight:400">（可改）</span></label>
-                <textarea onblur="updateNCField('${n.id}','verifyResult',this.value)" placeholder="如：现场复核证据充分，纠正措施有效，CAPA 闭环；建议 3 个月后管理评审跟踪。" style="width:100%;min-height:70px;padding:6px 8px;border:1px solid var(--border);border-radius:5px;font-size:12px;resize:vertical">${escHtml(n.verifyResult||'')}</textarea>
-              </div>
-            </div>
-          </div>
+      <tr id="ncDetail_${n.id}" style="display:none;background:var(--bg-light)">
+        <td colspan="9" style="padding:10px 14px">
+          <div style="margin-bottom:6px"><strong>根本原因分析：</strong>${escHtml(n.root)||'<span style="color:var(--text-muted)">未填写</span>'}</div>
+          ${n.status==='closed'?`<div style="margin-bottom:6px"><strong>验证日期：</strong>${n.verifyDate||'—'}</div>
+          <div><strong>验证结果：</strong>${escHtml(n.verifyResult)||'—'}</div>`:
+          `<div style="margin-top:8px">
+            <label style="font-size:11px;color:var(--text-muted)">整改验证结果（关闭时填写）：</label>
+            <input type="text" placeholder="如：现场已复核，整改有效，CAPA闭环" onblur="updateNCField('${n.id}','verifyResult',this.value)" value="${escHtml(n.verifyResult||'')}" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;margin-top:4px">
+          </div>`}
         </td>
       </tr>`;
     }
-    // ===== 按"关联审核"自动分组，每组独立可折叠（偏好记忆 + 默认全关）=====
+    // ===== 按"关联审核"自动分组，每组独立可折叠 =====
     const groups={};
     ncs.forEach(n=>{
-      const rec=recMap[n.auditId];
+      const rec=recs.find(r=>r.id===n.auditId);
       const key=rec?`${rec.date}｜${rec.type}（${rec.org||'—'}）`:'未关联审核';
       (groups[key]=groups[key]||[]).push(n);
     });
@@ -6496,12 +6394,11 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
       +'<th style="padding:8px 6px;border-bottom:1px solid var(--border);text-align:left;font-weight:700;color:#b45309">操作</th>'
       +'</tr></thead>';
     let html='';
-    keys.forEach(k=>{
+    keys.forEach((k,gi)=>{
       const items=groups[k];
       const c=items.filter(n=>n.status==='closed').length;
       const body=items.map(rowHtml).join('');
-      const grpOpen=getAuditPref('ng_'+k,false);
-      html+=`<details class="nc-group" data-group-key="${escHtml(k)}" ${grpOpen?'open':''} style="border:1px solid var(--border);border-radius:8px;margin-bottom:10px;overflow:hidden;background:#fff">
+      html+=`<details class="nc-group" ${gi===0?'open':''} style="border:1px solid var(--border);border-radius:8px;margin-bottom:10px;overflow:hidden;background:#fff">
         <summary style="cursor:pointer;padding:10px 14px;background:var(--bg-light);font-size:13px;font-weight:700;color:var(--primary-dark);display:flex;align-items:center;gap:8px">
           <span style="transition:transform .15s" class="ng-chev">▾</span>
           <span>🔗 ${escHtml(k)}</span>
@@ -6513,21 +6410,10 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
       </details>`;
     });
     box.innerHTML=html;
-    // 绑定 nc-group details toggle 事件保存偏好
-    try{
-      box.querySelectorAll('details.nc-group').forEach(function(det){
-        det.addEventListener('toggle',function(){
-          const k=this.getAttribute('data-group-key');
-          if(k){setAuditPref('ng_'+k,this.open?true:false)}
-        });
-      });
-    }catch(_e_){}
   }
   function toggleNcDetail(id){
-    const el=document.getElementById('ncDetail_'+id);if(!el)return;
-    const nowHidden=el.style.display==='none';
-    el.style.display=nowHidden?'':'none';
-    try{setAuditPref('nd_'+id,nowHidden?true:false)}catch(_e_){}
+    const el=document.getElementById('ncDetail_'+id);
+    if(el)el.style.display=el.style.display==='none'?'':'none';
   }
 
   // --- 审核经验库 ---
@@ -6625,83 +6511,21 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
   }
   window.toggleLesson=toggleLesson;
 
-  // ===== 审核经验库：类型筛选 + 具体审核记录筛选 + 联动 + 卡片折叠 =====
+  // ===== 审核经验库：类型筛选 + 联动 + 卡片折叠 =====
   let auditTypeFilter='';
-  let auditRecordFilter='';  // 单条审核记录ID筛选（需求10：选某次体考→下方不符合项自动联动）
-  function _auditLabel(r){return (r.date||'无日期')+'｜'+(r.type||'未分类')+'（'+(r.org||'—')+'）';}
   function renderAuditTypeFilter(){
-    // (1) 类型筛选下拉
-    const sel=document.getElementById('auditTypeSel');if(sel){
-      const types=[...new Set(getAuditRecords().map(r=>r.type).filter(Boolean))].sort();
-      sel.innerHTML='<option value="">全部类型</option>'+types.map(t=>`<option value="${escHtml(t)}"${t===auditTypeFilter?' selected':''}>${escHtml(t)}</option>`).join('');
-      sel.onchange=function(){
-        // 切类型时，如果当前具体审核记录不属于该类型，自动清空具体记录筛选
-        if(this.value && auditRecordFilter){
-          const r=getAuditRecords().find(x=>x.id===auditRecordFilter);
-          if(!r || r.type!==this.value){auditRecordFilter='';}
-        }
-        auditTypeFilter=this.value;
-        renderAuditTypeFilter();renderAuditList();renderNcForm();renderNcList();renderLessonList();
-        updateAuditHints();
-      };
-    }
-    // (2) 具体审核记录下拉（需求10：筛选某次审核→下方不符合项自动联动）
-    const rsel=document.getElementById('auditRecordSel');if(rsel){
-      let recs=getAuditRecords();
-      if(auditTypeFilter){recs=recs.filter(r=>r.type===auditTypeFilter);}
-      // 按审核日期倒序排列，方便选择最近的一次
-      const sorted=[...recs].sort((a,b)=>{const da=a.date||'',db=b.date||'';if(!da)return 1;if(!db)return -1;return db.localeCompare(da);});
-      rsel.innerHTML='<option value="">全部审核记录</option>'+sorted.map(r=>`<option value="${escAttr(r.id)}"${r.id===auditRecordFilter?' selected':''}>${escHtml(_auditLabel(r))}</option>`).join('');
-      rsel.onchange=function(){applyAuditRecordFilter(this.value);};
-    }
-    // (3) 当前筛选状态提示
-    const msg=document.getElementById('auditTypeFilterMsg');if(msg){
-      const parts=[];
-      if(auditTypeFilter)parts.push('类型：'+auditTypeFilter);
-      if(auditRecordFilter){
-        const r=getAuditRecords().find(x=>x.id===auditRecordFilter);
-        if(r)parts.push('单条：'+_auditLabel(r));
-      }
-      msg.textContent=parts.length>0?('🧭 当前筛选：'+parts.join(' ／ ')):'';
-    }
+    const sel=document.getElementById('auditTypeSel');if(!sel)return;
+    const types=[...new Set(getAuditRecords().map(r=>r.type).filter(Boolean))].sort();
+    sel.innerHTML='<option value="">全部类型</option>'+types.map(t=>`<option value="${escHtml(t)}"${t===auditTypeFilter?' selected':''}>${escHtml(t)}</option>`).join('');
+    sel.onchange=function(){applyAuditTypeFilter(this.value);};
+    const msg=document.getElementById('auditTypeFilterMsg');
+    if(msg)msg.textContent=auditTypeFilter?('当前筛选：'+auditTypeFilter):'';
   }
-  window.clearAuditAllFilters=function(){
-    try{
-      auditTypeFilter='';auditRecordFilter='';
-      renderAuditTypeFilter();renderAuditList();renderNcForm();renderNcList();renderLessonList();
-      updateAuditHints();
-    }catch(e){try{renderAuditAll()}catch(_){}}
-  };
-  function applyAuditRecordFilter(val){
-    auditRecordFilter=val||'';
-    // 如果选中了某条具体审核，自动把类型筛选同步到该审核的类型（让列表也只显示这条，视觉更连贯）
-    if(auditRecordFilter){
-      const r=getAuditRecords().find(x=>x.id===auditRecordFilter);
-      if(r && r.type){auditTypeFilter=r.type;}
-    }
-    renderAuditTypeFilter();renderAuditList();renderNcForm();renderNcList();renderLessonList();
-    updateAuditHints();
-  }
-  window.applyAuditRecordFilter=applyAuditRecordFilter;
   function applyAuditTypeFilter(val){
     auditTypeFilter=val||'';
-    // 切类型时清空具体记录筛选，避免留着不属于该类型的旧ID
-    auditRecordFilter='';
-    renderAuditTypeFilter();renderAuditList();renderNcForm();renderNcList();renderLessonList();
-    updateAuditHints();
-  }
-  function updateAuditHints(){
+    renderAuditList();renderNcForm();renderNcList();renderLessonList();
     const nh=document.getElementById('ncSyncHint');
-    if(nh){
-      if(auditRecordFilter){
-        const r=getAuditRecords().find(x=>x.id===auditRecordFilter);
-        nh.innerHTML=r?('🔗 <strong style="color:var(--primary)">已锁定本次审核：</strong>'+escHtml(_auditLabel(r))+' · 下方不符合项只显示本次审核关联项 &nbsp; <a href="javascript:void(0)" onclick="clearAuditAllFilters()" style="color:var(--primary);text-decoration:underline;font-size:11px">清除锁定</a>'):'（显示全部，未设置审核筛选）';
-      }else if(auditTypeFilter){
-        nh.textContent='已随上方审核类型筛选「'+auditTypeFilter+'」同步过滤关联审核';
-      }else{
-        nh.textContent='（显示全部，未设置审核筛选）';
-      }
-    }
+    if(nh)nh.textContent=auditTypeFilter?('已随上方审核类型筛选「'+auditTypeFilter+'」同步过滤关联审核'):'（显示全部，未设置审核类型筛选）';
     const lh=document.getElementById('lessonSyncHint');
     if(lh)lh.textContent=auditTypeFilter?('已随上方审核类型筛选「'+auditTypeFilter+'」同步筛选经验'):'（显示全部，未设置审核类型筛选）';
   }
@@ -10860,253 +10684,115 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
     var QUICK_STUDY_ONLY=['study']; // 学习计划只保留第一个（仪表盘）
     // 旧版（v4）平铺排序 -> v5 分组迁移
     function migrateQuickOrder(){
-      try{
-        var ver=localStorage.getItem('qms_quick_order_ver');
-        if(ver==='5')return;
-        var old=null;
-        try{old=JSON.parse(localStorage.getItem('qms_quick_order')||'null')}catch(e){}
-        if(old&&Array.isArray(old)&&old.length){
-          // 平铺顺序 -> 按导航分组重排（尽量保持旧相对顺序）
-          var map={};
-          old.forEach(function(id){map[id]=true});
-          localStorage.setItem('qms_quick_order_v2',JSON.stringify(map));
-        }
-        localStorage.setItem('qms_quick_order_ver','5');
-        // 清理旧 key
-        try{localStorage.removeItem('qms_quick_order')}catch(e){}
-      }catch(e){try{console.error('[migrateQuickOrder]',e)}catch(_){}}
+      var ver=localStorage.getItem('qms_quick_order_ver');
+      if(ver==='5')return;
+      var old=null;
+      try{old=JSON.parse(localStorage.getItem('qms_quick_order')||'null')}catch(e){}
+      if(old&&Array.isArray(old)&&old.length){
+        // 平铺顺序 -> 按导航分组重排（尽量保持旧相对顺序）
+        var map={};
+        old.forEach(function(id){map[id]=true});
+        localStorage.setItem('qms_quick_order_v2',JSON.stringify(map));
+      }
+      localStorage.setItem('qms_quick_order_ver','5');
+      // 清理旧 key
+      try{localStorage.removeItem('qms_quick_order')}catch(e){}
     }
     function getQuickGroupState(){
       try{return JSON.parse(localStorage.getItem('qms_quick_groups')||'{}')}catch(e){return {}}
     }
     function setQuickGroupState(o){try{localStorage.setItem('qms_quick_groups',JSON.stringify(o))}catch(e){}}
-    // 读取导航分组（排除配置外）—— 每分组独立 try/catch，单个分组异常不影响其余
+    // 读取导航分组（排除配置外）
     function getNavSections(){
       var secs=[];
-      try{
-        var secNodes=document.querySelectorAll('.nav-section');
-        if(!secNodes||secNodes.length===0){try{console.warn('[getNavSections] .nav-section not found');}catch(_){}return secs;}
-        secNodes.forEach(function(sec){
-          try{
-            var key=sec.getAttribute('data-sec');
-            if(!key)return;
-            if(QUICK_EXCLUDE_SECS.indexOf(key)>=0)return;
-            var titleEl=sec.querySelector('.nav-section-title');
-            var title=titleEl?titleEl.textContent.replace('▾','').replace('▸','').trim():key;
-            var items=[];
-            var navItems=sec.querySelectorAll('.nav-item');
-            navItems.forEach(function(item){
-              try{
-                var target=item.getAttribute('data-target');
-                var href=item.getAttribute('href');
-                var text=item.textContent.replace(/\s+/g,' ').trim();
-                // 学习计划：只留第一个（仪表盘）
-                if(key==='study'&&items.length>0)return;
-                var icon='';
-                var iconEl=item.querySelector('[data-lucide]');
-                if(iconEl){
-                  var iconName=iconEl.getAttribute('data-lucide')||'circle';
-                  var color=iconEl.getAttribute('style')||'';
-                  icon='<i data-lucide="'+iconName+'" style="width:26px;height:26px;'+color+';stroke-width:1.8"></i>';
-                }
-                var badge=0;
-                try{badge=target?getModuleBadge(target):0;}catch(_e_badge_){badge=0;}
-                if(href&&!target){
-                  items.push({id:'ext_'+encodeURIComponent(href),target:null,href:href,title:text,icon:icon,badge:false,isExternal:true});
-                }else if(target){
-                  items.push({id:target,target:target,href:null,title:text,icon:icon,badge:badge>0?badge:false,isExternal:false});
-                }
-              }catch(ie){try{console.error('[getNavSections item]',ie)}catch(_){}}
-            });
-            if(items.length)secs.push({key:key,title:title,items:items});
-          }catch(se){try{console.error('[getNavSections sec]',se)}catch(_){}}
+      document.querySelectorAll('.nav-section').forEach(function(sec){
+        var key=sec.getAttribute('data-sec');
+        if(!key)return;
+        if(QUICK_EXCLUDE_SECS.indexOf(key)>=0)return;
+        var titleEl=sec.querySelector('.nav-section-title');
+        var title=titleEl?titleEl.textContent.replace('▾','').replace('▸','').trim():key;
+        var items=[];
+        sec.querySelectorAll('.nav-item').forEach(function(item){
+          var target=item.getAttribute('data-target');
+          var href=item.getAttribute('href');
+          var text=item.textContent.replace(/\s+/g,' ').trim();
+          // 学习计划：只留第一个（仪表盘）
+          if(key==='study'&&items.length>0)return;
+          var icon='';
+          var iconEl=item.querySelector('[data-lucide]');
+          if(iconEl){
+            var iconName=iconEl.getAttribute('data-lucide')||'circle';
+            var color=iconEl.getAttribute('style')||'';
+            icon='<i data-lucide="'+iconName+'" style="width:26px;height:26px;'+color+';stroke-width:1.8"></i>';
+          }
+          var badge=target?getModuleBadge(target):0;
+          if(href&&!target){
+            items.push({id:'ext_'+encodeURIComponent(href),target:null,href:href,title:text,icon:icon,badge:false,isExternal:true});
+          }else if(target){
+            items.push({id:target,target:target,href:null,title:text,icon:icon,badge:badge>0?badge:false,isExternal:false});
+          }
         });
-      }catch(e){try{console.error('[getNavSections]',e)}catch(_){}}
+        if(items.length)secs.push({key:key,title:title,items:items});
+      });
       return secs;
     }
-    // 组内排序应用（从 qms_quick_order_v2 读）—— 排序异常返回原始顺序
+    // 组内排序应用（从 qms_quick_order_v2 读）
     function orderItems(sec){
-      try{
-        var saved=null;
-        try{saved=JSON.parse(localStorage.getItem('qms_quick_order_v2')||'null')}catch(e){}
-        if(saved&&saved[sec.key]&&Array.isArray(saved[sec.key])){
-          var orderMap={};saved[sec.key].forEach(function(id,i){orderMap[id]=i});
-          var items=sec.items.slice();
-          items.sort(function(a,b){
-            try{
-              var ia=orderMap[a.id],ib=orderMap[b.id];
-              if(ia===undefined&&ib===undefined)return 0;
-              if(ia===undefined)return 1;
-              if(ib===undefined)return -1;
-              return ia-ib;
-            }catch(_){return 0}
-          });
-          return items;
-        }
-      }catch(e){try{console.error('[orderItems]',e)}catch(_){}}
+      var saved=null;
+      try{saved=JSON.parse(localStorage.getItem('qms_quick_order_v2')||'null')}catch(e){}
+      if(saved&&saved[sec.key]&&Array.isArray(saved[sec.key])){
+        var orderMap={};saved[sec.key].forEach(function(id,i){orderMap[id]=i});
+        var items=sec.items.slice();
+        items.sort(function(a,b){
+          var ia=orderMap[a.id],ib=orderMap[b.id];
+          if(ia===undefined&&ib===undefined)return 0;
+          if(ia===undefined)return 1;
+          if(ib===undefined)return -1;
+          return ia-ib;
+        });
+        return items;
+      }
       return sec.items;
     }
     window.renderQuickGrid=function(){
-      var html='';
-      var grid=null;
-      try{
-        grid=document.getElementById('quickGrid');
-        if(!grid)return;
-        migrateQuickOrder();
-        var secs=getNavSections();
-        var state=getQuickGroupState();
-        var allCollapsed=secs.length>0;
-        secs.forEach(function(s){if(!state[s.key])allCollapsed=false});
-        html='<div style="grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px;flex-wrap:wrap">'
-          +'<div style="font-size:11px;color:#94a3b8">👆 点击分组标题可折叠，按住卡片右上角 ☰ 可拖拽排序</div>'
-          +'<button type="button" onclick="toggleAllQuickSections()" style="padding:4px 12px;border:1px solid var(--border);border-radius:6px;background:#fff;cursor:pointer;font-size:11px;color:#64748b">'+(allCollapsed?'🔽 全部展开':'🔼 全部折叠')+'</button>'
-          +'</div>';
-        if(!secs||secs.length===0){
-          // =========================================================
-          //  FALLBACK: getNavSections() failed (nav-section structure
-          //  missing or malformed). We MUST still show the cards.
-          //  Strategy: grab ALL .nav-item elements directly, skip
-          //  grouping logic entirely, render one flat set of cards.
-          // =========================================================
-          try{
-            var allItems=document.querySelectorAll('.nav-item');
-            var flat=[];
-            allItems.forEach(function(it){
-              try{
-                var target=it.getAttribute('data-target');
-                var href=it.getAttribute('href');
-                var text=it.textContent.replace(/\s+/g,' ').trim();
-                if(!text)return;
-                var iconName='';
-                var iconEl=it.querySelector('[data-lucide]');
-                if(iconEl) iconName=iconEl.getAttribute('data-lucide')||'';
-                var icon='';
-                if(iconName){
-                  var color=(iconEl.getAttribute('style')||'');
-                  icon='<i data-lucide="'+iconName+'" style="width:26px;height:26px;'+color+';stroke-width:1.8"></i>';
-                }else{
-                  icon='<span style="width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;background:#f0f9ff;color:#0ea5e9;font-size:14px;font-weight:800">'+(text.charAt(0).toUpperCase())+'</span>';
-                }
-                var badge=0;
-                try{badge=target?getModuleBadge(target):0;}catch(_){}
-                if(href&&!target){
-                  flat.push({id:'ext_'+encodeURIComponent(href),target:null,href:href,title:text,icon:icon,badge:badge>0?badge:false,isExternal:true});
-                }else if(target){
-                  flat.push({id:target,target:target,href:null,title:text,icon:icon,badge:badge>0?badge:false,isExternal:false});
-                }
-              }catch(_f_item){}
-            });
-            if(flat.length>0){
-              // Deduplicate by id (some nav-items may be duplicated in DOM)
-              var seen={};
-              var uniq=[];
-              flat.forEach(function(c){if(!seen[c.id]){seen[c.id]=true;uniq.push(c)}});
-              html+='<div style="margin-bottom:14px">'
-                +'<div style="cursor:default;display:flex;align-items:center;gap:8px;padding:6px 4px">'
-                +'<span style="width:4px;height:14px;background:#0ea5e9;border-radius:2px;display:inline-block"></span>'
-                +'<span style="font-size:12px;font-weight:700;color:#334155">全部模块（'+uniq.length+'）</span>'
-                +'<span style="margin-left:auto;font-size:11px;color:#94a3b8;background:#ecfeff;padding:2px 8px;border-radius:6px;border:1px solid #bae6fd">🔧 兜底渲染模式</span>'
-                +'</div>'
-                +'<div style="grid-column:1/-1;background:#f8fafc;border:1px solid #eef2f7;border-radius:10px;padding:10px">'
-                +'<div class="quick-grid" style="gap:10px">';
-              uniq.forEach(function(c){
-                try{
-                  var _sa=function(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
-                  var badgeHtml=c.badge?`<span class="quick-badge">${c.badge}</span>`:'';
-                  if(c.isExternal){
-                    return html += `<a class="quick-card" data-id="${_sa(c.id)}" href="${_sa(c.href||'#')}" target="_blank" rel="noopener nofollow">${badgeHtml}<div class="qicon">${c.icon}</div><div class="qtitle">${escQuick(c.title)}</div></a>`;
-                  }
-                  var tg=c.target?String(c.target).replace(/'/g,"\\'"):'';
-                  html += `<div class="quick-card" data-id="${_sa(c.id)}" onclick="showModule('${tg}')">${badgeHtml}<div class="qicon">${c.icon}</div><div class="qtitle">${escQuick(c.title)}</div></div>`;
-                }catch(_u){}
-              });
-              html += '</div></div></div>';
-            }else{
-              // Even the flat fallback got zero items. Show the repair buttons.
-              html+='<div style="grid-column:1/-1;padding:22px 18px;border:2px dashed #fca5a5;border-radius:14px;background:linear-gradient(135deg,#fff7ed,#fef2f2);text-align:center">'
-                +'<div style="font-size:32px;margin-bottom:6px">🧭</div>'
-                +'<div style="font-size:14px;font-weight:700;color:#b91c1c;margin-bottom:6px">快速入口分组加载异常</div>'
-                +'<div style="font-size:12px;color:#7f1d1d;margin-bottom:14px;line-height:1.7">左侧导航分组读取失败，可能是部分数据格式需要刷新清理。<br>不用怕，所有数据都在 localStorage 里不会丢，点下面按钮一键重建即可：</div>'
-                +'<button type="button" onclick="try{localStorage.removeItem(\'qms_quick_order_v2\');localStorage.removeItem(\'qms_quick_groups\');renderQuickGrid&&renderQuickGrid();}catch(e){try{location.reload();}catch(_){}}" style="padding:8px 22px;background:#dc2626;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;margin-right:8px">🔧 一键重建快速入口</button>'
-                +'<button type="button" onclick="try{location.reload();}catch(_){}" style="padding:8px 22px;background:#fff;color:#1d4ed8;border:1px solid #93c5fd;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">🔄 刷新页面</button>'
-                +'</div>';
-            }
-          }catch(_ffb_){
-            html+='<div style="grid-column:1/-1;padding:22px 18px;border:2px dashed #fca5a5;border-radius:14px;background:linear-gradient(135deg,#fff7ed,#fef2f2);text-align:center">'
-              +'<div style="font-size:32px;margin-bottom:6px">🧭</div>'
-              +'<div style="font-size:14px;font-weight:700;color:#b91c1c;margin-bottom:6px">快速入口分组加载异常</div>'
-              +'<div style="font-size:12px;color:#7f1d1d;margin-bottom:14px;line-height:1.7">兜底逻辑异常：'+(String(_ffb_&&_ffb_.message||_ffb_)).replace(/[<>&]/g,' ')+'<br>数据安全不受影响：</div>'
-              +'<button type="button" onclick="try{localStorage.removeItem(\'qms_quick_order_v2\');localStorage.removeItem(\'qms_quick_groups\');renderQuickGrid&&renderQuickGrid();}catch(e){try{location.reload();}catch(_){}}" style="padding:8px 22px;background:#dc2626;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;margin-right:8px">🔧 一键重建快速入口</button>'
-              +'<button type="button" onclick="try{location.reload();}catch(_){}" style="padding:8px 22px;background:#fff;color:#1d4ed8;border:1px solid #93c5fd;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">🔄 刷新页面</button>'
-              +'</div>';
-          }
-        }else{
-          secs.forEach(function(sec,idx){
-            try{
-              var collapsed=!!state[sec.key];
-              var items=orderItems(sec);
-              var colorIdx=idx%6;
-              var colors=['#4f46e5','#0ea5e9','#059669','#d97706','#dc2626','#7c3aed'];
-              var bar=colors[colorIdx];
-              var cardsHtml='';
-              try{
-                cardsHtml=items.map(function(c){
-                  try{
-                    // 局部属性安全转义（不依赖全局 escAttr）
-                    var _sa=function(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
-                    var badgeHtml=c.badge?`<span class="quick-badge">${c.badge}</span>`:'';
-                    var cid=c.id?String(c.id).replace(/'/g,"\\'"):'';
-                    var skey=sec.key?String(sec.key).replace(/'/g,"\\'"):'';
-                    var handle=`<span class="qs-handle" onpointerdown="quickPDown(event,'${cid}','${skey}',this)" title="按住拖动排序">☰</span>`;
-                    var activeCls=(c.target&&c.target===currentQuickModule())?' quick-active':'';
-                    if(c.isExternal){
-                      var hr=c.href||'#';
-                      return `<a class="quick-card${activeCls}" data-id="${_sa(c.id)}" href="${_sa(hr)}" target="_blank" rel="noopener nofollow">${badgeHtml}${handle}<div class="qicon">${c.icon}</div><div class="qtitle">${escQuick(c.title)}</div></a>`;
-                    }
-                    var tg=c.target?String(c.target).replace(/'/g,"\\'"):'';
-                    return `<div class="quick-card${activeCls}" data-id="${_sa(c.id)}" onclick="showModule('${tg}')">${badgeHtml}${handle}<div class="qicon">${c.icon}</div><div class="qtitle">${escQuick(c.title)}</div></div>`;
-                  }catch(_card_e_){
-                    return `<div class="quick-card" style="border:1px dashed #fca5a5;background:#fef2f2;padding:12px"><div class="qtitle" style="color:#991b1b;font-size:11px">条目加载异常</div></div>`;
-                  }
-                }).join('');
-              }catch(cmap_e){try{console.error('[renderQuickGrid items.map]',cmap_e)}catch(_){}}
-              html+='<div style="margin-bottom:14px">'
-                +'<div onclick="toggleQuickSection(\''+sec.key+'\')" style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:6px 4px;user-select:none">'
-                +'<span style="width:4px;height:14px;background:'+bar+';border-radius:2px;display:inline-block"></span>'
-                +'<span style="font-size:12px;font-weight:700;color:#334155">'+escQuick(sec.title)+'</span>'
-                +'<span style="font-size:11px;color:#94a3b8">('+items.length+')</span>'
-                +'<span style="margin-left:auto;font-size:11px;color:#94a3b8">'+(collapsed?'▸ 展开':'▾ 折叠')+'</span>'
-                +'</div>'
-                +(collapsed?'':'<div style="grid-column:1/-1;background:#f8fafc;border:1px solid #eef2f7;border-radius:10px;padding:10px" data-qsec="'+sec.key+'">'
-                  +'<div class="quick-grid" style="gap:10px">'+cardsHtml+'</div>'
-                +'</div>');
-              html+='</div>';
-            }catch(sec_e){
-              try{console.error('[renderQuickGrid sec]',sec_e)}catch(_){}
-              html+='<div style="margin-bottom:14px;padding:12px;border:1px dashed #fca5a5;border-radius:10px;background:#fff7ed;font-size:12px;color:#9a3412">⚠️ 「'+escQuick(sec?title:'分组')+'」加载异常，已跳过（数据安全）</div>';
-            }
-          });
-        }
-        // ----- 最终写入 DOM（务必保证每次都能落到这一步！）-----
-        grid.innerHTML=html;
-        // lucide 图标渲染
-        try{if(window.lucide&&lucide.createIcons)lucide.createIcons({root:grid});}catch(e){try{console.error('[lucide quick]',e)}catch(_){}}
-      }catch(e){
-        try{console.error('[renderQuickGrid FATAL]',e)}catch(_){}
-        // 终极兜底：哪怕整个函数出错，也要给用户一个能点的提示
-        try{
-          if(!grid){grid=document.getElementById('quickGrid');}
-          if(grid){
-            grid.innerHTML='<div style="padding:24px 20px;border:2px dashed #fca5a5;border-radius:16px;background:linear-gradient(135deg,#fff1f2,#fff7ed);text-align:center">'
-              +'<div style="font-size:40px;margin-bottom:8px">⚠️</div>'
-              +'<div style="font-size:15px;font-weight:800;color:#b91c1c;margin-bottom:8px">快速入口渲染遇到问题</div>'
-              +'<div style="font-size:12px;color:#7f1d1d;margin-bottom:16px;line-height:1.8">已自动拦截错误，其他模块不受影响 · 你的业务数据 100% 安全不会丢失<br>通常是旧排序缓存与新版本不兼容，一键清理即可恢复：</div>'
-              +'<button type="button" onclick="try{localStorage.removeItem(\'qms_quick_order_v2\');localStorage.removeItem(\'qms_quick_order_ver\');localStorage.removeItem(\'qms_quick_groups\');renderQuickGrid&&renderQuickGrid();}catch(e){location.reload();}" style="padding:9px 24px;background:#dc2626;color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:13px;font-weight:700;margin-right:10px">🔧 清理缓存并重建</button>'
-              +'<button type="button" onclick="location.reload()" style="padding:9px 24px;background:#fff;color:#1d4ed8;border:1px solid #93c5fd;border-radius:10px;cursor:pointer;font-size:13px;font-weight:700">🔄 刷新页面</button>'
-              +'</div>';
-          }
-        }catch(_f_){}
-      }
+      var grid=document.getElementById('quickGrid');if(!grid)return;
+      migrateQuickOrder();
+      var secs=getNavSections();
+      var state=getQuickGroupState();
+      var allCollapsed=true;
+      secs.forEach(function(s){if(!state[s.key])allCollapsed=false});
+      var html='<div style="grid-column:1/-1;display:flex;align-items:center;justify-content:flex-end;margin-bottom:8px">'
+        +'<button onclick="toggleAllQuickSections()" style="padding:4px 12px;border:1px solid var(--border);border-radius:6px;background:#fff;cursor:pointer;font-size:11px;color:#64748b">'+(allCollapsed?'🔽 全部展开':'🔼 全部折叠')+'</button>'
+        +'</div>';
+      secs.forEach(function(sec,idx){
+        var collapsed=!!state[sec.key];
+        var items=orderItems(sec);
+        var colorIdx=idx%6;
+        var colors=['#4f46e5','#0ea5e9','#059669','#d97706','#dc2626','#7c3aed'];
+        var bar=colors[colorIdx];
+        html+='<div style="margin-bottom:14px">'
+          +'<div onclick="toggleQuickSection(\''+sec.key+'\')" style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:6px 4px;user-select:none">'
+          +'<span style="width:4px;height:14px;background:'+bar+';border-radius:2px;display:inline-block"></span>'
+          +'<span style="font-size:12px;font-weight:700;color:#334155">'+escQuick(sec.title)+'</span>'
+          +'<span style="font-size:11px;color:#94a3b8">('+items.length+')</span>'
+          +'<span style="margin-left:auto;font-size:11px;color:#94a3b8">'+(collapsed?'▸ 展开':'▾ 折叠')+'</span>'
+          +'</div>'
+          +(collapsed?'':'<div style="grid-column:1/-1;background:#f8fafc;border:1px solid #eef2f7;border-radius:10px;padding:10px" data-qsec="'+sec.key+'">'
+            +'<div class="quick-grid" style="gap:10px">'+items.map(function(c){
+              var badgeHtml=c.badge?`<span class="quick-badge">${c.badge}</span>`:'';
+              var handle=`<span class="qs-handle" onpointerdown="quickPDown(event,'${c.id}','${sec.key}',this)" title="按住拖动排序">☰</span>`;
+              var activeCls=(c.target&&c.target===currentQuickModule())?' quick-active':'';
+              if(c.isExternal){
+                return `<a class="quick-card${activeCls}" data-id="${c.id}" href="${c.href}" target="_blank" rel="noopener">${badgeHtml}${handle}<div class="qicon">${c.icon}</div><div class="qtitle">${escQuick(c.title)}</div></a>`;
+              }
+              return `<div class="quick-card${activeCls}" data-id="${c.id}" onclick="showModule('${c.target}')">${badgeHtml}${handle}<div class="qicon">${c.icon}</div><div class="qtitle">${escQuick(c.title)}</div></div>`;
+            }).join('')+'</div>'
+          +'</div>');
+      });
+      grid.innerHTML=html;
+      // lucide 图标渲染
+      try{if(window.lucide&&lucide.createIcons)lucide.createIcons({root:grid})}catch(e){}
+      // 拖拽完成后更新分组顺序存储
     };
     function currentQuickModule(){
       try{
@@ -11261,67 +10947,40 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
 
   /* ========== 侧边栏功能卡片折叠（全局备份 / 清理测试）========== */
   // - 直接挂 window，确保内联 onclick="toggleSBCard(..)" 能找得到
-  // - 采用"卡片级 150ms 防重入 + classList&getComputedStyle 双校验"模式，
-  //   彻底杜绝"委托兜底+内联onclick双触发导致一开一关视觉不变"问题（经验858890）
+  // - 同时提供 document 级点击委托兜底：避免作用域问题导致点击无效
   window.toggleSBCard=function(id){
     try{
       const el=('string'===typeof id)?document.getElementById(id):(id && id.closest? id.closest('.sb-card') : null);
-      if(!el)return;
-      /* =========================================================
-         LESSONS LEARNED: the old "getComputedStyle + actuallyHidden
-         double-check" logic was WRONG because CSS transitions take
-         ~0.26s. DURING the transition, getComputedStyle returns
-         INTERMEDIATE values (maxHeight=120, opacity=0.5, ...) so the
-         "sync class to real state" branch was toggling the class BACK
-         to its previous value -> user clicked, nothing changed visually.
-
-         SOLUTION: we do NOT try to be smart. We just flip the class.
-         End of story. CSS takes care of animation.
-         ========================================================= */
+      if(!el){try{console.warn('[toggleSBCard] target not found:',id);}catch(_){}return}
       el.classList.toggle('collapsed');
-      // --- Persist collapse preference (same schema as nav-section) ---
-      try{
-        const collapsed={};
-        document.querySelectorAll('.sb-card').forEach(function(c){
-          if(c && c.id){collapsed[c.id]=!!c.classList.contains('collapsed')}
-        });
-        localStorage.setItem('qms_sb_card_collapse',JSON.stringify(collapsed));
-      }catch(_){}
-    }catch(e){}
+      // 持久化（与 nav-section 同一范式）
+      const collapsed={};
+      document.querySelectorAll('.sb-card').forEach(c=>{if(c && c.id){collapsed[c.id]=!!c.classList.contains('collapsed')}});
+      try{localStorage.setItem('qms_sb_card_collapse',JSON.stringify(collapsed))}catch(_){}
+    }catch(e){try{console.error('[toggleSBCard]',e)}catch(_){}}
   };
-  // 初始化恢复折叠状态 + 事件委托（兜底，仅在没有 inline onclick 时才生效）
+  // 初始化恢复折叠状态 + 事件委托（兜底）
   (function _initSBCards(){
     try{
       const c2=JSON.parse(localStorage.getItem('qms_sb_card_collapse')||'{}');
       Object.keys(c2).forEach(id=>{if(c2[id]){const el=document.getElementById(id);if(el)el.classList.add('collapsed')}});
     }catch(e){}
-    // 箭头 lucide 图标允许点击穿透到 head，避免点 svg 子元素被"表单元素拦截判断"误伤
-    try{
-      document.querySelectorAll('.sb-card-head .sb-arrow, .sb-card-head .sb-arrow svg, .sb-card-head .sb-arrow svg *')
-        .forEach(function(n){if(n && n.style){n.style.pointerEvents='none';}});
-    }catch(_e_){}
-    // 事件委托：点击 .sb-card-head → 仅当 head 上 **完全没有** inline onclick 时才兜底触发
+    // 事件委托：点击 .sb-card-head → 若 inline onclick 因故未执行，这里兜底触发
     try{
       document.addEventListener('click',function(ev){
         const t=ev && ev.target;if(!t)return;
         const head=t.closest && t.closest('.sb-card-head');
         if(!head)return;
-        // 白名单：点击卡片内部的"功能性控件"不折叠（button/input/a/label/select）
-        if(t.closest){
-          const fc=t.closest('button, label, a, input, select, textarea, [role="button"]');
-          if(fc){return;}
-        }
+        // 如果 head 里有表单元素（button/label/input/a）被直接点击，不折叠
+        if(t.closest && (t.closest('button') || t.closest('label') || t.closest('a') || t.closest('input'))){return}
         const card=head.closest('.sb-card');if(!card)return;
-        // 【关键修复】严格判断：既有 onclick 属性，且真的是可调用函数类型，就绝对不兜底（让 inline onclick 唯一执行）
-        const hasInline=!!head.getAttribute('onclick');
-        const hasHandler=typeof head.onclick==='function';
-        if(hasInline || hasHandler){return;}
-        // 走到这里 = 完全没有 onclick，兜底触发（同时标记已触发时间戳）
-        const now=Date.now();const last=parseInt(card.dataset._sbLastToggle||'0',10);
-        if(now-last<150){return;}
-        card.dataset._sbLastToggle=String(now);
+        if(head.getAttribute('onclick')){return;}  // 已有 inline onclick，避免双触发
+        // 防止与已触发的 inline onclick 重复 toggle：用 dataset._lastT 节流
+        const now=Date.now();const last=parseInt(card.dataset._lastT||'0',10);
+        if(now-last<80){return}  // 80ms 内已触发过（inline onclick 已执行过）就不重复
+        card.dataset._lastT=String(now);
         window.toggleSBCard(card);
-      },true);  // 捕获阶段
+      },true);  // 捕获阶段，优先处理
     }catch(e){try{console.error('[_initSBCards]',e)}catch(_){}}
   })();
 
@@ -13891,25 +13550,10 @@ renderPwds();
 </script>
 
 <script>
-// 【2026-08-21 根治缓存顽疾】彻底注销所有 Service Worker 并清空 Cache Storage。
-// 旧版 PWA 的 cache-first Service Worker 会把 index.html 锁死在旧缓存里：
-// GitHub 部署新代码后，桌面端永远加载不到更新（本次"改了没反应"的真凶）。
-// 注销后页面始终走网络（GitHub Pages HTTP 缓存最多10分钟），更新即时可见。
-// 注意：此操作只清 Service Worker 缓存，localStorage 业务数据 100% 不受影响。
+// 注册 Service Worker（PWA离线能力）
 if('serviceWorker' in navigator){
-  try{
-    navigator.serviceWorker.getRegistrations().then(function(rs){
-      (rs||[]).forEach(function(r){ try{ r.unregister(); }catch(e){} });
-    }).catch(function(){});
-  }catch(e){}
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
-try{
-  if(window.caches && caches.keys){
-    caches.keys().then(function(ks){
-      (ks||[]).forEach(function(k){ try{ caches.delete(k); }catch(e){} });
-    }).catch(function(){});
-  }
-}catch(e){}
 </script>
 
 <!-- 版本更新提示：GitHub Pages 有 10 分钟 HTTP 缓存，此脚本轮询 version.json（带时间戳绕过缓存） -->
@@ -13925,7 +13569,7 @@ try{
 </div>
 <script>
 (function(){
-  var APP_VERSION='2026-08-21.33';
+  var APP_VERSION='2026-08-21.34';
   var STORAGE_KEY='qms_update_ignored_version';
   function qmsParseVersion(v){
     var m=(v||'').match(/^(\d{4}-\d{2}-\d{2})\.(\d+)$/);
@@ -15101,112 +14745,6 @@ function mreviewCopy(){
       }
     }
   });
-})();
-</script>
-<script>
-/* ================================================================
-   🚀 启动兜底 v2：强制渲染快速入口 + 首页首屏初始化（零侵入）
-   v2 修复：不再判断"是否已有内容"，每次都强制重绘，避免旧缓存
-   DOM 残留导致判断失误跳过渲染；并追加版本号徽标让用户一眼确认
-   是否加载了最新代码。
-================================================================ */
-(function(){
-  var _VKEY='QMS_v20260821c_快速入口强制渲染版';
-  // ---- 注入版本徽标（右上角/顶栏可见，没看到就说明加载的是旧缓存！）----
-  try{
-    var _hd=document.querySelector('.topbar, .app-header, header, body');
-    if(_hd){
-      var _vb=document.createElement('div');
-      _vb.id='__qms_ver_badge';
-      _vb.style.cssText='position:fixed;right:12px;bottom:12px;z-index:999999;padding:5px 10px;background:linear-gradient(135deg,#fef3c7,#fde68a);color:#92400e;border:1px solid #fbbf24;border-radius:10px;font-size:11px;font-weight:700;box-shadow:0 4px 12px rgba(251,191,36,.35);user-select:none;cursor:pointer;';
-      _vb.title='点击刷新快速入口 · 没看到这个小黄标=加载了旧缓存/旧页面';
-      _vb.innerHTML='🐱 QMS Build 2026-08-21c &nbsp;|&nbsp;点我↺刷新快速入口';
-      _vb.onclick=function(){try{window.renderQuickGrid&&renderQuickGrid();}catch(e){alert('刷新失败：'+e.message)}};
-      document.body.appendChild(_vb);
-    }
-  }catch(_vb_){}
-  function _boots(force){
-    try{
-      // ===== 【关键修复 v2】不再判断已有内容，直接强制重新渲染 =====
-      // 旧逻辑：if(qg && (!qg.innerHTML || ...)) 会被残留DOM欺骗跳过
-      // 新逻辑：只要 grid 存在 + renderQuickGrid 函数存在，就强制重绘
-      var qg=document.getElementById('quickGrid');
-      if(qg && window.renderQuickGrid){
-        try{
-          window.renderQuickGrid();
-        }catch(_qg_e_){
-          try{console.error('[boot] renderQuickGrid:',_qg_e_)}catch(_){}
-          // 连函数调用都失败的最后兜底：直接写死一个提示
-          try{
-            qg.innerHTML='<div style="padding:22px 18px;border:2px dashed #dc2626;border-radius:14px;background:#fef2f2;text-align:center">'
-              +'<div style="font-size:30px;margin-bottom:6px">🚨</div>'
-              +'<div style="font-size:14px;font-weight:800;color:#991b1b;margin-bottom:8px">快速入口渲染失败</div>'
-              +'<div style="font-size:12px;color:#7f1d1d;margin-bottom:14px;line-height:1.7">错误：'+(String(_qg_e_&&_qg_e_.message||_qg_e_)).replace(/[<>&]/g,' ')+'<br>数据安全不受影响，点击右下角小黄标或下方按钮重试：</div>'
-              +'<button type="button" onclick="try{renderQuickGrid()}catch(e){alert(e.message)}" style="padding:8px 20px;background:#dc2626;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700">🔧 重新渲染</button>'
-              +'<button type="button" onclick="location.reload()" style="padding:8px 20px;background:#fff;color:#1d4ed8;border:1px solid #93c5fd;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;margin-left:8px">🔄 刷新页面</button>'
-              +'</div>';
-          }catch(_f_){}
-        }
-      }else if(qg){
-        // grid 存在但函数不存在（脚本可能还没加载完）→ 写个加载中提示
-        //  KEY FIX: link calls renderQuickGrid() instead of location.reload()
-        //           (reload would show THIS screen again -> infinite loop)
-        try{
-          if(!qg.innerHTML || qg.innerHTML.trim().length<20){
-            qg.innerHTML='<div style="padding:24px;text-align:center;color:#64748b;font-size:13px">'
-              +'<span style="display:inline-block;animation:spin 1s linear infinite;margin-right:8px">⏳</span>'
-              +'快速入口加载中...若3秒后仍显示本提示，请'
-              +'<span style="color:#2563eb;cursor:pointer;text-decoration:underline;font-weight:700" '
-              +'onclick="window._forceQuickRender()">'
-              +'点这里强制渲染'
-              +'</span></div>';
-            // Schedule a GUARANTEED auto-retry after 3s - no user click required
-            setTimeout(function(){
-              try{
-                if(window.renderQuickGrid){window.renderQuickGrid();}
-              }catch(_){}
-            },3000);
-          }
-        }catch(_){}
-      }
-      // 2) 若当前无任何模块展示（首次启动漏切首页）→ 手动触发
-      try{
-        var hasActive=document.querySelector('.nav-item.active, .module-section.active');
-        if(!hasActive && window.showModule){ window.showModule('dashboard'); }
-      }catch(_sm_e_){}
-    }catch(_top_){ try{console.error('[boot] top:',_top_)}catch(_){} }
-  }
-  // ================================================================
-  //  Helper: boot-time "force render quick entries" button callback.
-  //  Previously this code was inlined in HTML with 3-level quote
-  //  nesting (JS string concat + HTML attr + inner JS code), which
-  //  caused SyntaxError: Unexpected identifier 'style' (the escaping
-  //  was hopelessly wrong). We now define a global helper and call
-  //  it with zero inline arguments.
-  // ================================================================
-  window._forceQuickRender=function(){
-    try{
-      var qg=document.getElementById('quickGrid');
-      if(qg){
-        qg.innerHTML='<div style="padding:12px 20px;background:#dcfce7;border:1px solid #86efac;border-radius:12px;color:#166534;font-weight:700;text-align:center;animation:pulse 1.2s ease infinite">🔧 正在强制渲染快速入口，请稍候...</div>';
-      }
-      setTimeout(function(){
-        try{
-          if(window.renderQuickGrid){window.renderQuickGrid();}
-        }catch(e){
-          try{if(qg)qg.innerHTML='<div style="padding:12px 20px;background:#fee2e2;border:1px solid #fca5a5;border-radius:12px;color:#991b1b">❌ 渲染失败：'+String(e.message||e).replace(/[<>&]/g,' ')+'</div>';}catch(_){}
-        }
-      },400);
-    }catch(e){
-      try{location.reload();}catch(_){}
-    }
-  };
-
-  // 4 次异步强制渲染（不再依赖"已有内容"的判断，每次都执行）
-  try{ _boots(true); }catch(_){}                                  // 立即
-  setTimeout(function(){ try{_boots(true)}catch(_){} }, 300);    // 300ms
-  setTimeout(function(){ try{_boots(true)}catch(_){} }, 1800);   // 1800ms
-  setTimeout(function(){ try{_boots(true)}catch(_){} }, 4000);   // 4000ms（终极兜底）
 })();
 </script>
 </body>
