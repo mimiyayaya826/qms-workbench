@@ -13527,6 +13527,34 @@ renderPwds();
     else{g[field]=val}
     saveGoals(arr);renderCountdownRow();renderGoalDash();
   };
+  window.studySaveGoalManual=function(gid){
+    // 从DOM中读取所有字段的值，确保最新输入都被保存
+    const arr=getGoals();const g=arr.find(x=>x.id===gid);if(!g)return;
+    // 遍历编辑器中该目标的所有输入框，读取最新值
+    const editor=document.getElementById('studyGoalEditor');
+    if(editor){
+      const inputs=editor.querySelectorAll('input,select,textarea');
+      inputs.forEach(function(inp){
+        if(inp.getAttribute('onchange')&&inp.getAttribute('onchange').indexOf(gid)>=0){
+          // 从onchange属性中提取字段名
+          const match=inp.getAttribute('onchange').match(/studyUpdateGoal\('([^']+)','([^']+)'/);
+          if(match&&match[2]){
+            const field=match[2];
+            if(['targetScore','totalScore','targetHours'].includes(field)){g[field]=parseFloat(inp.value)||0}
+            else{g[field]=inp.value}
+          }
+        }
+      });
+    }
+    saveGoals(arr);renderCountdownRow();renderGoalDash();
+    // 视觉反馈
+    const btns=document.querySelectorAll('[onclick="studySaveGoalManual(\''+gid+'\')"]');
+    btns.forEach(function(btn){
+      const origText=btn.textContent;const origBg=btn.style.background;
+      btn.textContent='✅ 已保存';btn.style.background='linear-gradient(135deg,#10b981,#059669)';
+      setTimeout(function(){btn.textContent=origText;btn.style.background=origBg||'';},1200);
+    });
+  };
   window.studyAddSubject=function(gid){
     const arr=getGoals();const g=arr.find(x=>x.id===gid);if(!g)return;
     const name=prompt('新增科目名称：','新科目');if(!name)return;
@@ -13583,6 +13611,10 @@ renderPwds();
             <div style="text-align:center"><div style="font-size:10px;color:#475569;margin-bottom:2px">满分</div><input type="number" value="${s.totalScore||0}" onchange="studyUpdateSubject('${g.id}','${s.id}','totalScore',this.value)" style="width:100%;padding:4px 6px;border:1px solid #cbd5e1;border-radius:5px;font-size:11px;text-align:center"></div>
             <button onclick="studyDeleteSubject('${g.id}','${s.id}')" style="padding:4px 8px;background:#fff;border:1px solid #fecaca;color:#b91c1c;border-radius:6px;cursor:pointer;font-size:11px">删除</button>
           </div>`).join('')||'<div style="font-size:11px;color:#94a3b8;padding:6px">还没有科目，点右上角 + 添加</div>'}
+        </div>
+        <div style="margin-top:10px;padding-top:10px;border-top:1px dashed #e2e8f0;display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:11px;color:#94a3b8">💡 修改任意字段后，点此按钮立即保存并同步上方仪表盘</span>
+          <button onclick="studySaveGoalManual('${g.id}')" style="padding:6px 16px;background:linear-gradient(135deg,#0284c7,#0ea5e9);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:12px">💾 保存修改</button>
         </div>
       </div>
     `).join('')+`<div style="text-align:center;margin-top:6px"><button onclick="studyAddGoal()" style="padding:8px 18px;border:1px dashed #38bdf8;background:#eff6ff;color:#0369a1;border-radius:12px;cursor:pointer;font-weight:700;font-size:12px">➕ 新增一个考试目标</button></div>`;
