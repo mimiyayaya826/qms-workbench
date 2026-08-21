@@ -11535,8 +11535,8 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
         localStorage.setItem('qms_sync_last_time',Date.now());
         status.textContent='拉取成功：'+new Date().toLocaleTimeString();
         status.style.color='var(--success)';
-        if(!silent)toast('✅ 数据已恢复！页面将刷新。');
-        location.reload();
+        if(!silent){toast('✅ 数据已恢复！页面将刷新。');location.reload();}
+
       }
     }catch(e){
       status.textContent='拉取失败：'+e.message;
