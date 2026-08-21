@@ -11326,11 +11326,13 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
   // 避免 Token 被写入 data.json 触发 GitHub 密钥推送保护（409 Secret detected）。
   function collectAllSyncData(){
     const data={};
-    const skip={'qms_sync_config':1,'qms_sync_last_time':1,'qms_site_lock_pwd':1,'qms_site_pwd':1,'qms_lock_pwd':1,'qms_sitelock':1,'qms_pwd_enc':1};
+    const skip={'qms_sync_config':1,'qms_sync_last_time':1,'qms_site_lock_pwd':1,'qms_site_pwd':1,'qms_lock_pwd':1,'qms_sitelock':1,'qms_pwd_enc':1,'qms_pwds':1,'qms_certs':1,'qms_certs_ver':1,'qms_cloud_attach_cfg':1};
     for(let i=0;i<localStorage.length;i++){
       const k=localStorage.key(i);
-      if(k&&k.startsWith('qms_')&&!skip[k]){
-        data[k]=localStorage.getItem(k);
+      if(k&&k.startsWith('qms_')&&!skip[k]&&!/^qms_(pwd|lock|sitelock|secret|token|pass|enc)/i.test(k)){
+        var _v=localStorage.getItem(k);
+        if(_v&&/(ghp_[A-Za-z0-9]{20,}|github_pat_|gho_|ghs_|AKIA[0-9A-Z]{16}|xox[bap]-|-----BEGIN[^-]|sk-[A-Za-z0-9]{20,})/.test(_v)){continue;}
+        data[k]=_v;
       }
     }
     data.__syncTime=new Date().toISOString();
@@ -11482,7 +11484,11 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
           setTimeout(()=>{try{/* BUG1 FIX：云端上传成功 - 不弹confirm(会静默false)。用户如要拉取可手动点同步按钮。*/}catch(_){}},100);
         }else{
           const err=await putResp.json().catch(()=>({}));
-          throw new Error('HTTP '+putResp.status+(err.message?' - '+err.message:''));
+          if(putResp.status===409){toast('⚠️ 密钥保护拦截(409 Secret)：data.json 含敏感内容被 GitHub 拒绝。已自动排除密码类数据，请重试；仍失败可在仓库 Settings→Security→Push protection 关闭拦截','danger');throw new Error('409 Secret detected - 已排除敏感键，请重试');}
+          else if(putResp.status===401){toast('❌ 401：Token 认证失败或无仓库 Contents 写权限。请检查：fine-grained Token 需在 Repository access 选 qms-workbench 仓库，并给 Contents 权限勾 Read and write','danger');throw new Error('HTTP 401 - Token 无 Contents 写权限');}
+          else if(putResp.status===403){toast('❌ 403：Token 缺少 contents 写权限。fine-grained token 需勾选 Contents: Read and write','danger');throw new Error('HTTP 403 - 检查 Token 写权限');}
+          else if(putResp.status===404){toast('❌ 404：仓库/分支配置有误，或 data.json 无法访问','danger');throw new Error('HTTP 404 - 检查仓库配置');}
+          else{throw new Error('HTTP '+putResp.status+(err.message?' - '+err.message:''));}
         }
       }catch(e){
         if(status){status.textContent='同步失败：'+(e.message||String(e));status.style.color='var(--danger)'}
