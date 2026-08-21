@@ -10850,115 +10850,183 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
     var QUICK_STUDY_ONLY=['study']; // 学习计划只保留第一个（仪表盘）
     // 旧版（v4）平铺排序 -> v5 分组迁移
     function migrateQuickOrder(){
-      var ver=localStorage.getItem('qms_quick_order_ver');
-      if(ver==='5')return;
-      var old=null;
-      try{old=JSON.parse(localStorage.getItem('qms_quick_order')||'null')}catch(e){}
-      if(old&&Array.isArray(old)&&old.length){
-        // 平铺顺序 -> 按导航分组重排（尽量保持旧相对顺序）
-        var map={};
-        old.forEach(function(id){map[id]=true});
-        localStorage.setItem('qms_quick_order_v2',JSON.stringify(map));
-      }
-      localStorage.setItem('qms_quick_order_ver','5');
-      // 清理旧 key
-      try{localStorage.removeItem('qms_quick_order')}catch(e){}
+      try{
+        var ver=localStorage.getItem('qms_quick_order_ver');
+        if(ver==='5')return;
+        var old=null;
+        try{old=JSON.parse(localStorage.getItem('qms_quick_order')||'null')}catch(e){}
+        if(old&&Array.isArray(old)&&old.length){
+          // 平铺顺序 -> 按导航分组重排（尽量保持旧相对顺序）
+          var map={};
+          old.forEach(function(id){map[id]=true});
+          localStorage.setItem('qms_quick_order_v2',JSON.stringify(map));
+        }
+        localStorage.setItem('qms_quick_order_ver','5');
+        // 清理旧 key
+        try{localStorage.removeItem('qms_quick_order')}catch(e){}
+      }catch(e){try{console.error('[migrateQuickOrder]',e)}catch(_){}}
     }
     function getQuickGroupState(){
       try{return JSON.parse(localStorage.getItem('qms_quick_groups')||'{}')}catch(e){return {}}
     }
     function setQuickGroupState(o){try{localStorage.setItem('qms_quick_groups',JSON.stringify(o))}catch(e){}}
-    // 读取导航分组（排除配置外）
+    // 读取导航分组（排除配置外）—— 每分组独立 try/catch，单个分组异常不影响其余
     function getNavSections(){
       var secs=[];
-      document.querySelectorAll('.nav-section').forEach(function(sec){
-        var key=sec.getAttribute('data-sec');
-        if(!key)return;
-        if(QUICK_EXCLUDE_SECS.indexOf(key)>=0)return;
-        var titleEl=sec.querySelector('.nav-section-title');
-        var title=titleEl?titleEl.textContent.replace('▾','').replace('▸','').trim():key;
-        var items=[];
-        sec.querySelectorAll('.nav-item').forEach(function(item){
-          var target=item.getAttribute('data-target');
-          var href=item.getAttribute('href');
-          var text=item.textContent.replace(/\s+/g,' ').trim();
-          // 学习计划：只留第一个（仪表盘）
-          if(key==='study'&&items.length>0)return;
-          var icon='';
-          var iconEl=item.querySelector('[data-lucide]');
-          if(iconEl){
-            var iconName=iconEl.getAttribute('data-lucide')||'circle';
-            var color=iconEl.getAttribute('style')||'';
-            icon='<i data-lucide="'+iconName+'" style="width:26px;height:26px;'+color+';stroke-width:1.8"></i>';
-          }
-          var badge=target?getModuleBadge(target):0;
-          if(href&&!target){
-            items.push({id:'ext_'+encodeURIComponent(href),target:null,href:href,title:text,icon:icon,badge:false,isExternal:true});
-          }else if(target){
-            items.push({id:target,target:target,href:null,title:text,icon:icon,badge:badge>0?badge:false,isExternal:false});
-          }
+      try{
+        var secNodes=document.querySelectorAll('.nav-section');
+        if(!secNodes||secNodes.length===0){try{console.warn('[getNavSections] .nav-section not found');}catch(_){}return secs;}
+        secNodes.forEach(function(sec){
+          try{
+            var key=sec.getAttribute('data-sec');
+            if(!key)return;
+            if(QUICK_EXCLUDE_SECS.indexOf(key)>=0)return;
+            var titleEl=sec.querySelector('.nav-section-title');
+            var title=titleEl?titleEl.textContent.replace('▾','').replace('▸','').trim():key;
+            var items=[];
+            var navItems=sec.querySelectorAll('.nav-item');
+            navItems.forEach(function(item){
+              try{
+                var target=item.getAttribute('data-target');
+                var href=item.getAttribute('href');
+                var text=item.textContent.replace(/\s+/g,' ').trim();
+                // 学习计划：只留第一个（仪表盘）
+                if(key==='study'&&items.length>0)return;
+                var icon='';
+                var iconEl=item.querySelector('[data-lucide]');
+                if(iconEl){
+                  var iconName=iconEl.getAttribute('data-lucide')||'circle';
+                  var color=iconEl.getAttribute('style')||'';
+                  icon='<i data-lucide="'+iconName+'" style="width:26px;height:26px;'+color+';stroke-width:1.8"></i>';
+                }
+                var badge=0;
+                try{badge=target?getModuleBadge(target):0;}catch(_e_badge_){badge=0;}
+                if(href&&!target){
+                  items.push({id:'ext_'+encodeURIComponent(href),target:null,href:href,title:text,icon:icon,badge:false,isExternal:true});
+                }else if(target){
+                  items.push({id:target,target:target,href:null,title:text,icon:icon,badge:badge>0?badge:false,isExternal:false});
+                }
+              }catch(ie){try{console.error('[getNavSections item]',ie)}catch(_){}}
+            });
+            if(items.length)secs.push({key:key,title:title,items:items});
+          }catch(se){try{console.error('[getNavSections sec]',se)}catch(_){}}
         });
-        if(items.length)secs.push({key:key,title:title,items:items});
-      });
+      }catch(e){try{console.error('[getNavSections]',e)}catch(_){}}
       return secs;
     }
-    // 组内排序应用（从 qms_quick_order_v2 读）
+    // 组内排序应用（从 qms_quick_order_v2 读）—— 排序异常返回原始顺序
     function orderItems(sec){
-      var saved=null;
-      try{saved=JSON.parse(localStorage.getItem('qms_quick_order_v2')||'null')}catch(e){}
-      if(saved&&saved[sec.key]&&Array.isArray(saved[sec.key])){
-        var orderMap={};saved[sec.key].forEach(function(id,i){orderMap[id]=i});
-        var items=sec.items.slice();
-        items.sort(function(a,b){
-          var ia=orderMap[a.id],ib=orderMap[b.id];
-          if(ia===undefined&&ib===undefined)return 0;
-          if(ia===undefined)return 1;
-          if(ib===undefined)return -1;
-          return ia-ib;
-        });
-        return items;
-      }
+      try{
+        var saved=null;
+        try{saved=JSON.parse(localStorage.getItem('qms_quick_order_v2')||'null')}catch(e){}
+        if(saved&&saved[sec.key]&&Array.isArray(saved[sec.key])){
+          var orderMap={};saved[sec.key].forEach(function(id,i){orderMap[id]=i});
+          var items=sec.items.slice();
+          items.sort(function(a,b){
+            try{
+              var ia=orderMap[a.id],ib=orderMap[b.id];
+              if(ia===undefined&&ib===undefined)return 0;
+              if(ia===undefined)return 1;
+              if(ib===undefined)return -1;
+              return ia-ib;
+            }catch(_){return 0}
+          });
+          return items;
+        }
+      }catch(e){try{console.error('[orderItems]',e)}catch(_){}}
       return sec.items;
     }
     window.renderQuickGrid=function(){
-      var grid=document.getElementById('quickGrid');if(!grid)return;
-      migrateQuickOrder();
-      var secs=getNavSections();
-      var state=getQuickGroupState();
-      var allCollapsed=true;
-      secs.forEach(function(s){if(!state[s.key])allCollapsed=false});
-      var html='<div style="grid-column:1/-1;display:flex;align-items:center;justify-content:flex-end;margin-bottom:8px">'
-        +'<button onclick="toggleAllQuickSections()" style="padding:4px 12px;border:1px solid var(--border);border-radius:6px;background:#fff;cursor:pointer;font-size:11px;color:#64748b">'+(allCollapsed?'🔽 全部展开':'🔼 全部折叠')+'</button>'
-        +'</div>';
-      secs.forEach(function(sec,idx){
-        var collapsed=!!state[sec.key];
-        var items=orderItems(sec);
-        var colorIdx=idx%6;
-        var colors=['#4f46e5','#0ea5e9','#059669','#d97706','#dc2626','#7c3aed'];
-        var bar=colors[colorIdx];
-        html+='<div style="margin-bottom:14px">'
-          +'<div onclick="toggleQuickSection(\''+sec.key+'\')" style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:6px 4px;user-select:none">'
-          +'<span style="width:4px;height:14px;background:'+bar+';border-radius:2px;display:inline-block"></span>'
-          +'<span style="font-size:12px;font-weight:700;color:#334155">'+escQuick(sec.title)+'</span>'
-          +'<span style="font-size:11px;color:#94a3b8">('+items.length+')</span>'
-          +'<span style="margin-left:auto;font-size:11px;color:#94a3b8">'+(collapsed?'▸ 展开':'▾ 折叠')+'</span>'
-          +'</div>'
-          +(collapsed?'':'<div style="grid-column:1/-1;background:#f8fafc;border:1px solid #eef2f7;border-radius:10px;padding:10px" data-qsec="'+sec.key+'">'
-            +'<div class="quick-grid" style="gap:10px">'+items.map(function(c){
-              var badgeHtml=c.badge?`<span class="quick-badge">${c.badge}</span>`:'';
-              var handle=`<span class="qs-handle" onpointerdown="quickPDown(event,'${c.id}','${sec.key}',this)" title="按住拖动排序">☰</span>`;
-              var activeCls=(c.target&&c.target===currentQuickModule())?' quick-active':'';
-              if(c.isExternal){
-                return `<a class="quick-card${activeCls}" data-id="${c.id}" href="${c.href}" target="_blank" rel="noopener">${badgeHtml}${handle}<div class="qicon">${c.icon}</div><div class="qtitle">${escQuick(c.title)}</div></a>`;
-              }
-              return `<div class="quick-card${activeCls}" data-id="${c.id}" onclick="showModule('${c.target}')">${badgeHtml}${handle}<div class="qicon">${c.icon}</div><div class="qtitle">${escQuick(c.title)}</div></div>`;
-            }).join('')+'</div>'
-          +'</div>');
-      });
-      grid.innerHTML=html;
-      // lucide 图标渲染
-      try{if(window.lucide&&lucide.createIcons)lucide.createIcons({root:grid})}catch(e){}
-      // 拖拽完成后更新分组顺序存储
+      var html='';
+      var grid=null;
+      try{
+        grid=document.getElementById('quickGrid');
+        if(!grid)return;
+        migrateQuickOrder();
+        var secs=getNavSections();
+        var state=getQuickGroupState();
+        var allCollapsed=secs.length>0;
+        secs.forEach(function(s){if(!state[s.key])allCollapsed=false});
+        html='<div style="grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px;flex-wrap:wrap">'
+          +'<div style="font-size:11px;color:#94a3b8">👆 点击分组标题可折叠，按住卡片右上角 ☰ 可拖拽排序</div>'
+          +'<button type="button" onclick="toggleAllQuickSections()" style="padding:4px 12px;border:1px solid var(--border);border-radius:6px;background:#fff;cursor:pointer;font-size:11px;color:#64748b">'+(allCollapsed?'🔽 全部展开':'🔼 全部折叠')+'</button>'
+          +'</div>';
+        if(!secs||secs.length===0){
+          // ===== 兜底：找不到分组时，不要什么都不渲染，给出可操作提示 =====
+          html+='<div style="grid-column:1/-1;padding:22px 18px;border:2px dashed #fca5a5;border-radius:14px;background:linear-gradient(135deg,#fff7ed,#fef2f2);text-align:center">'
+            +'<div style="font-size:32px;margin-bottom:6px">🧭</div>'
+            +'<div style="font-size:14px;font-weight:700;color:#b91c1c;margin-bottom:6px">快速入口分组加载异常</div>'
+            +'<div style="font-size:12px;color:#7f1d1d;margin-bottom:14px;line-height:1.7">左侧导航分组读取失败，可能是部分数据格式需要刷新清理。<br>不用怕，所有数据都在 localStorage 里不会丢，点下面按钮一键重建即可：</div>'
+            +'<button type="button" onclick="try{localStorage.removeItem(\'qms_quick_order_v2\');localStorage.removeItem(\'qms_quick_groups\');renderQuickGrid&&renderQuickGrid();}catch(e){try{location.reload();}catch(_){}}" style="padding:8px 22px;background:#dc2626;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;margin-right:8px">🔧 一键重建快速入口</button>'
+            +'<button type="button" onclick="try{location.reload();}catch(_){}" style="padding:8px 22px;background:#fff;color:#1d4ed8;border:1px solid #93c5fd;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">🔄 刷新页面</button>'
+            +'</div>';
+        }else{
+          secs.forEach(function(sec,idx){
+            try{
+              var collapsed=!!state[sec.key];
+              var items=orderItems(sec);
+              var colorIdx=idx%6;
+              var colors=['#4f46e5','#0ea5e9','#059669','#d97706','#dc2626','#7c3aed'];
+              var bar=colors[colorIdx];
+              var cardsHtml='';
+              try{
+                cardsHtml=items.map(function(c){
+                  try{
+                    // 局部属性安全转义（不依赖全局 escAttr）
+                    var _sa=function(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
+                    var badgeHtml=c.badge?`<span class="quick-badge">${c.badge}</span>`:'';
+                    var cid=c.id?String(c.id).replace(/'/g,"\\'"):'';
+                    var skey=sec.key?String(sec.key).replace(/'/g,"\\'"):'';
+                    var handle=`<span class="qs-handle" onpointerdown="quickPDown(event,'${cid}','${skey}',this)" title="按住拖动排序">☰</span>`;
+                    var activeCls=(c.target&&c.target===currentQuickModule())?' quick-active':'';
+                    if(c.isExternal){
+                      var hr=c.href||'#';
+                      return `<a class="quick-card${activeCls}" data-id="${_sa(c.id)}" href="${_sa(hr)}" target="_blank" rel="noopener nofollow">${badgeHtml}${handle}<div class="qicon">${c.icon}</div><div class="qtitle">${escQuick(c.title)}</div></a>`;
+                    }
+                    var tg=c.target?String(c.target).replace(/'/g,"\\'"):'';
+                    return `<div class="quick-card${activeCls}" data-id="${_sa(c.id)}" onclick="showModule('${tg}')">${badgeHtml}${handle}<div class="qicon">${c.icon}</div><div class="qtitle">${escQuick(c.title)}</div></div>`;
+                  }catch(_card_e_){
+                    return `<div class="quick-card" style="border:1px dashed #fca5a5;background:#fef2f2;padding:12px"><div class="qtitle" style="color:#991b1b;font-size:11px">条目加载异常</div></div>`;
+                  }
+                }).join('');
+              }catch(cmap_e){try{console.error('[renderQuickGrid items.map]',cmap_e)}catch(_){}}
+              html+='<div style="margin-bottom:14px">'
+                +'<div onclick="toggleQuickSection(\''+sec.key+'\')" style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:6px 4px;user-select:none">'
+                +'<span style="width:4px;height:14px;background:'+bar+';border-radius:2px;display:inline-block"></span>'
+                +'<span style="font-size:12px;font-weight:700;color:#334155">'+escQuick(sec.title)+'</span>'
+                +'<span style="font-size:11px;color:#94a3b8">('+items.length+')</span>'
+                +'<span style="margin-left:auto;font-size:11px;color:#94a3b8">'+(collapsed?'▸ 展开':'▾ 折叠')+'</span>'
+                +'</div>'
+                +(collapsed?'':'<div style="grid-column:1/-1;background:#f8fafc;border:1px solid #eef2f7;border-radius:10px;padding:10px" data-qsec="'+sec.key+'">'
+                  +'<div class="quick-grid" style="gap:10px">'+cardsHtml+'</div>'
+                +'</div>');
+              html+='</div>';
+            }catch(sec_e){
+              try{console.error('[renderQuickGrid sec]',sec_e)}catch(_){}
+              html+='<div style="margin-bottom:14px;padding:12px;border:1px dashed #fca5a5;border-radius:10px;background:#fff7ed;font-size:12px;color:#9a3412">⚠️ 「'+escQuick(sec?title:'分组')+'」加载异常，已跳过（数据安全）</div>';
+            }
+          });
+        }
+        // ----- 最终写入 DOM（务必保证每次都能落到这一步！）-----
+        grid.innerHTML=html;
+        // lucide 图标渲染
+        try{if(window.lucide&&lucide.createIcons)lucide.createIcons({root:grid});}catch(e){try{console.error('[lucide quick]',e)}catch(_){}}
+      }catch(e){
+        try{console.error('[renderQuickGrid FATAL]',e)}catch(_){}
+        // 终极兜底：哪怕整个函数出错，也要给用户一个能点的提示
+        try{
+          if(!grid){grid=document.getElementById('quickGrid');}
+          if(grid){
+            grid.innerHTML='<div style="padding:24px 20px;border:2px dashed #fca5a5;border-radius:16px;background:linear-gradient(135deg,#fff1f2,#fff7ed);text-align:center">'
+              +'<div style="font-size:40px;margin-bottom:8px">⚠️</div>'
+              +'<div style="font-size:15px;font-weight:800;color:#b91c1c;margin-bottom:8px">快速入口渲染遇到问题</div>'
+              +'<div style="font-size:12px;color:#7f1d1d;margin-bottom:16px;line-height:1.8">已自动拦截错误，其他模块不受影响 · 你的业务数据 100% 安全不会丢失<br>通常是旧排序缓存与新版本不兼容，一键清理即可恢复：</div>'
+              +'<button type="button" onclick="try{localStorage.removeItem(\'qms_quick_order_v2\');localStorage.removeItem(\'qms_quick_order_ver\');localStorage.removeItem(\'qms_quick_groups\');renderQuickGrid&&renderQuickGrid();}catch(e){location.reload();}" style="padding:9px 24px;background:#dc2626;color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:13px;font-weight:700;margin-right:10px">🔧 清理缓存并重建</button>'
+              +'<button type="button" onclick="location.reload()" style="padding:9px 24px;background:#fff;color:#1d4ed8;border:1px solid #93c5fd;border-radius:10px;cursor:pointer;font-size:13px;font-weight:700">🔄 刷新页面</button>'
+              +'</div>';
+          }
+        }catch(_f_){}
+      }
     };
     function currentQuickModule(){
       try{
@@ -11113,40 +11181,78 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
 
   /* ========== 侧边栏功能卡片折叠（全局备份 / 清理测试）========== */
   // - 直接挂 window，确保内联 onclick="toggleSBCard(..)" 能找得到
-  // - 同时提供 document 级点击委托兜底：避免作用域问题导致点击无效
+  // - 采用"卡片级 150ms 防重入 + classList&getComputedStyle 双校验"模式，
+  //   彻底杜绝"委托兜底+内联onclick双触发导致一开一关视觉不变"问题（经验858890）
   window.toggleSBCard=function(id){
     try{
       const el=('string'===typeof id)?document.getElementById(id):(id && id.closest? id.closest('.sb-card') : null);
       if(!el){try{console.warn('[toggleSBCard] target not found:',id);}catch(_){}return}
-      el.classList.toggle('collapsed');
-      // 持久化（与 nav-section 同一范式）
+      // --- 150ms 防重入（解决委托+inline双触发同时到达的问题）---
+      const nowTs=Date.now();
+      const lastTs=parseInt(el.dataset._sbLastToggle||'0',10);
+      if(nowTs-lastTs<150){return;}
+      el.dataset._sbLastToggle=String(nowTs);
+      // --- 双校验：classList + getComputedStyle 读取 body 真实展示状态 ---
+      // 防止"CSS @media / class 优先级 / 过渡动画"造成 class 与真实显示不一致
+      const bodyEl=el.querySelector(':scope > .sb-card-body');
+      let actuallyHidden=false;
+      if(bodyEl){
+        const cs=window.getComputedStyle(bodyEl);
+        const disp=(cs.display||'').toLowerCase();
+        const maxh=parseFloat(cs.maxHeight||'9999')||0;
+        const opac=parseFloat(cs.opacity||'1')||1;
+        actuallyHidden=(disp==='none') || (maxh<=1 && opac<0.05);
+      }
+      const hasClass=el.classList.contains('collapsed');
+      // 当且仅当 "class 状态" 与 "真实显示状态" 一致时才真正切换，避免重复 toggle
+      if(hasClass===actuallyHidden){
+        el.classList.toggle('collapsed');
+      }else if(actuallyHidden && !hasClass){
+        // 真实隐藏但没加 class → 补齐 class
+        el.classList.add('collapsed');
+      }else if(!actuallyHidden && hasClass){
+        // 真实显示但多了 collapsed → 移除
+        el.classList.remove('collapsed');
+      }
+      // --- 持久化（与 nav-section 同一范式）---
       const collapsed={};
       document.querySelectorAll('.sb-card').forEach(c=>{if(c && c.id){collapsed[c.id]=!!c.classList.contains('collapsed')}});
       try{localStorage.setItem('qms_sb_card_collapse',JSON.stringify(collapsed))}catch(_){}
     }catch(e){try{console.error('[toggleSBCard]',e)}catch(_){}}
   };
-  // 初始化恢复折叠状态 + 事件委托（兜底）
+  // 初始化恢复折叠状态 + 事件委托（兜底，仅在没有 inline onclick 时才生效）
   (function _initSBCards(){
     try{
       const c2=JSON.parse(localStorage.getItem('qms_sb_card_collapse')||'{}');
       Object.keys(c2).forEach(id=>{if(c2[id]){const el=document.getElementById(id);if(el)el.classList.add('collapsed')}});
     }catch(e){}
-    // 事件委托：点击 .sb-card-head → 若 inline onclick 因故未执行，这里兜底触发
+    // 箭头 lucide 图标允许点击穿透到 head，避免点 svg 子元素被"表单元素拦截判断"误伤
+    try{
+      document.querySelectorAll('.sb-card-head .sb-arrow, .sb-card-head .sb-arrow svg, .sb-card-head .sb-arrow svg *')
+        .forEach(function(n){if(n && n.style){n.style.pointerEvents='none';}});
+    }catch(_e_){}
+    // 事件委托：点击 .sb-card-head → 仅当 head 上 **完全没有** inline onclick 时才兜底触发
     try{
       document.addEventListener('click',function(ev){
         const t=ev && ev.target;if(!t)return;
         const head=t.closest && t.closest('.sb-card-head');
         if(!head)return;
-        // 如果 head 里有表单元素（button/label/input/a）被直接点击，不折叠
-        if(t.closest && (t.closest('button') || t.closest('label') || t.closest('a') || t.closest('input'))){return}
+        // 白名单：点击卡片内部的"功能性控件"不折叠（button/input/a/label/select）
+        if(t.closest){
+          const fc=t.closest('button, label, a, input, select, textarea, [role="button"]');
+          if(fc){return;}
+        }
         const card=head.closest('.sb-card');if(!card)return;
-        if(head.getAttribute('onclick')){return;}  // 已有 inline onclick，避免双触发
-        // 防止与已触发的 inline onclick 重复 toggle：用 dataset._lastT 节流
-        const now=Date.now();const last=parseInt(card.dataset._lastT||'0',10);
-        if(now-last<80){return}  // 80ms 内已触发过（inline onclick 已执行过）就不重复
-        card.dataset._lastT=String(now);
+        // 【关键修复】严格判断：既有 onclick 属性，且真的是可调用函数类型，就绝对不兜底（让 inline onclick 唯一执行）
+        const hasInline=!!head.getAttribute('onclick');
+        const hasHandler=typeof head.onclick==='function';
+        if(hasInline || hasHandler){return;}
+        // 走到这里 = 完全没有 onclick，兜底触发（同时标记已触发时间戳）
+        const now=Date.now();const last=parseInt(card.dataset._sbLastToggle||'0',10);
+        if(now-last<150){return;}
+        card.dataset._sbLastToggle=String(now);
         window.toggleSBCard(card);
-      },true);  // 捕获阶段，优先处理
+      },true);  // 捕获阶段
     }catch(e){try{console.error('[_initSBCards]',e)}catch(_){}}
   })();
 
