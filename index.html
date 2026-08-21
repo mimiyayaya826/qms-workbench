@@ -4188,12 +4188,12 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
 <section class="module" id="transition">
   <div class="module-header">
     <h2>📋 实操记录</h2>
-    <div class="desc">自定义实操项目记录 · SRN申请/UDI实操/任何自定义项目 · 步骤记录+文字+图片上传 · 数据存本地</div>
+    <div class="desc">自定义实操项目记录 · 步骤目录+详情双栏 · 文字+操作要点+注意事项 · 截图/附件上传 · 数据存本地</div>
   </div>
 
   <div class="alert alert-info">
     <span>💡</span>
-    <div><strong>使用说明：</strong>点击"➕ 新增项目"创建自定义追踪项目（如 SRN 号申请、UDI 模块实操、MDR CE 认证等）。每个项目可添加多个步骤，每步可填写文字记录并上传图片（存浏览器 LocalStorage）。方便日后查询回顾。</div>
+    <div><strong>使用说明：</strong>点击"➕ 新增项目"创建实操项目（如 SRN 申请、UDI 实操等）。进入项目后左侧为步骤目录，右侧为当前步骤详情，每步可填写文字、操作要点、注意事项，并上传截图和附件。</div>
   </div>
 
   <div class="card">
@@ -4201,9 +4201,10 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
     <div id="projectList"></div>
   </div>
 
-  <!-- 项目详情 -->
+  <!-- 项目详情：左右分栏 -->
   <div id="projectDetail" style="display:none;margin-top:16px"></div>
 </section>
+
 
 <!-- ============ Skill 联动说明 ============ -->
 
@@ -5497,8 +5498,10 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
   ];
   function getAlertNodes(){
     let arr=[];
-    try{arr=JSON.parse(localStorage.getItem('qms_alert_nodes')||'[]')}catch(e){arr=[]}
-    if(!Array.isArray(arr)||arr.length===0){arr=JSON.parse(JSON.stringify(defaultAlertNodes));localStorage.setItem('qms_alert_nodes',JSON.stringify(arr))}
+    let raw=localStorage.getItem('qms_alert_nodes');
+    try{arr=JSON.parse(raw||'[]')}catch(e){arr=[]}
+    if(raw===null){arr=JSON.parse(JSON.stringify(defaultAlertNodes));localStorage.setItem('qms_alert_nodes',JSON.stringify(arr))}
+    if(!Array.isArray(arr)){arr=[];}
     return arr;
   }
   function saveAlertNodes(arr){localStorage.setItem('qms_alert_nodes',JSON.stringify(arr))}
@@ -6260,7 +6263,9 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
     typeNames.forEach((t,gi)=>{
       const items=groups[t];
       const body=items.map(rowHtml).join('');
-      html+=`<details class="audit-group" ${gi===0?'open':''} style="border:1px solid var(--border);border-radius:8px;margin-bottom:10px;overflow:hidden;background:#fff">
+      const agKey='qms_audit_group_'+encodeURIComponent(t);
+      const agOpen=localStorage.getItem(agKey)==='1';
+      html+=`<details class="audit-group" ${agOpen?'open':''} data-ag-key="${agKey}" ontoggle="var k=this.getAttribute('data-ag-key');if(this.open){localStorage.setItem(k,'1')}else{localStorage.setItem(k,'0')}" style="border:1px solid var(--border);border-radius:8px;margin-bottom:10px;overflow:hidden;background:#fff">
         <summary style="cursor:pointer;padding:10px 14px;background:var(--bg-light);font-size:13px;font-weight:700;color:var(--primary-dark);display:flex;align-items:center;gap:8px">
           <span style="transition:transform .15s" class="ag-chev">▾</span>
           <span>📂 ${escHtml(t)}</span>
@@ -6348,13 +6353,18 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
         <option value="progress" ${n.status==='progress'?'selected':''}>整改中</option>
         <option value="closed" ${n.status==='closed'?'selected':''}>已关闭</option>
       </select>`;
+      const levelOpts=`<select onchange="updateNCField('${n.id}','level',this.value)" style="padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-size:11px;background:#fff;font-weight:600;${levelCls}">
+        <option value="严重" ${n.level==='严重'?'selected':''}>🔴 严重</option>
+        <option value="一般" ${n.level==='一般'?'selected':''}>🟡 一般</option>
+        <option value="观察项" ${n.level==='观察项'?'selected':''}>🔵 观察项</option>
+      </select>`;
       return `<tr>
-        <td><span style="padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;${levelCls}">${n.level}</span></td>
+        <td>${levelOpts}</td>
         <td style="font-size:11px">${rec?`${rec.date}<br>${escHtml(rec.type)}`:'<span style="color:var(--text-muted)">未关联</span>'}</td>
-        <td style="font-size:11px">${escHtml(n.clause||'—')}</td>
-        <td style="font-size:11px;max-width:180px">${escHtml(n.desc)}</td>
-        <td style="font-size:11px;max-width:180px">${escHtml(n.corrective||'—')}</td>
-        <td style="font-size:11px;${dueOverdue?'color:var(--danger);font-weight:600':''}">${n.due||'—'}${dueOverdue?'<br>⚠逾期':''}</td>
+        <td><input type="text" value="${escHtml(n.clause||'')}" onblur="updateNCField('${n.id}','clause',this.value)" placeholder="条款" style="width:100%;padding:3px 5px;border:1px solid var(--border);border-radius:5px;font-size:11px"></td>
+        <td><input type="text" value="${escHtml(n.desc||'')}" onblur="updateNCField('${n.id}','desc',this.value)" placeholder="不符合描述" style="width:100%;padding:3px 5px;border:1px solid var(--border);border-radius:5px;font-size:11px"></td>
+        <td><input type="text" value="${escHtml(n.corrective||'')}" onblur="updateNCField('${n.id}','corrective',this.value)" placeholder="整改措施" style="width:100%;padding:3px 5px;border:1px solid var(--border);border-radius:5px;font-size:11px"></td>
+        <td><input type="date" value="${escHtml(n.due||'')}" onchange="updateNCField('${n.id}','due',this.value)" style="width:100%;padding:3px 5px;border:1px solid var(--border);border-radius:5px;font-size:11px${dueOverdue?';color:var(--danger);font-weight:600':''}"></td>
         <td>${statusOpts}</td>
         <td style="font-size:11px">${n.status==='closed'?`✓ ${n.verifyDate||''}`:'—'}</td>
         <td>
@@ -6364,7 +6374,7 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
       </tr>
       <tr id="ncDetail_${n.id}" style="display:none;background:var(--bg-light)">
         <td colspan="9" style="padding:10px 14px">
-          <div style="margin-bottom:6px"><strong>根本原因分析：</strong>${escHtml(n.root)||'<span style="color:var(--text-muted)">未填写</span>'}</div>
+          <div style="margin-bottom:6px"><strong>根本原因分析：</strong><textarea onblur="updateNCField('${n.id}','root',this.value)" placeholder="用5Why/鱼骨图等方法分析根本原因..." style="width:100%;min-height:50px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;resize:vertical;margin-top:4px">${escHtml(n.root||'')}</textarea></div>
           ${n.status==='closed'?`<div style="margin-bottom:6px"><strong>验证日期：</strong>${n.verifyDate||'—'}</div>
           <div><strong>验证结果：</strong>${escHtml(n.verifyResult)||'—'}</div>`:
           `<div style="margin-top:8px">
@@ -6398,7 +6408,9 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
       const items=groups[k];
       const c=items.filter(n=>n.status==='closed').length;
       const body=items.map(rowHtml).join('');
-      html+=`<details class="nc-group" ${gi===0?'open':''} style="border:1px solid var(--border);border-radius:8px;margin-bottom:10px;overflow:hidden;background:#fff">
+      const ngKey='qms_nc_group_'+encodeURIComponent(k);
+      const ngOpen=localStorage.getItem(ngKey)==='1';
+      html+=`<details class="nc-group" ${ngOpen?'open':''} data-ng-key="${ngKey}" ontoggle="var k2=this.getAttribute('data-ng-key');if(this.open){localStorage.setItem(k2,'1')}else{localStorage.setItem(k2,'0')}" style="border:1px solid var(--border);border-radius:8px;margin-bottom:10px;overflow:hidden;background:#fff">
         <summary style="cursor:pointer;padding:10px 14px;background:var(--bg-light);font-size:13px;font-weight:700;color:var(--primary-dark);display:flex;align-items:center;gap:8px">
           <span style="transition:transform .15s" class="ng-chev">▾</span>
           <span>🔗 ${escHtml(k)}</span>
@@ -8793,13 +8805,16 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
   }
   function CERT_load(){
     var arr=[];
-    try{arr=JSON.parse(localStorage.getItem(CFG_CERT.KEY)||'[]')}catch(e){arr=[]}
-    if(!Array.isArray(arr)||arr.length===0){
+    var raw=localStorage.getItem(CFG_CERT.KEY);
+    try{arr=JSON.parse(raw||'[]')}catch(e){arr=[]}
+    if(raw===null){
       arr=JSON.parse(JSON.stringify(CERT_DEFAULTS));
       try{localStorage.setItem(CFG_CERT.KEY,JSON.stringify(arr))}catch(e){}
       localStorage.setItem(CFG_CERT.VER_KEY,CFG_CERT.VER);
       return arr;
     }
+    if(!Array.isArray(arr)){arr=[];}
+    if(arr.length===0){return arr;}
     var curVer=localStorage.getItem(CFG_CERT.VER_KEY);
     if(curVer!==CFG_CERT.VER){
       // v5/v6 → v7 统一迁移：若 files 内嵌 data，则写入 GIDB.cert_files 并清理引用
@@ -9420,511 +9435,539 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
   }
 
   /* ========== Part 3: 自定义项目追踪板 (Task 2) ========== */
+  /* ========== 实操记录 v2 ========== */
+  var _currentStepId = null; // 当前选中的步骤ID
+
   function getProjects(){
-    let arr=[];
+    var arr=[];
     try{arr=JSON.parse(localStorage.getItem('qms_projects')||'[]')}catch(e){arr=[]}
-    if(!Array.isArray(arr)||arr.length===0){
-      arr=JSON.parse(JSON.stringify(defaultProject));
-      localStorage.setItem('qms_projects',JSON.stringify(arr));
-    }
+    if(!Array.isArray(arr)){arr=[];}
+    // 数据迁移：确保每个步骤有新字段
+    arr.forEach(function(p){
+      if(!p.steps)p.steps=[];
+      p.steps.forEach(function(s){
+        if(s.keyPoints===undefined)s.keyPoints='';
+        if(s.notes===undefined)s.notes='';
+        if(s.attachments===undefined)s.attachments=[];
+      });
+    });
     return arr;
   }
   function saveProjects(arr){localStorage.setItem('qms_projects',JSON.stringify(arr))}
-  const defaultProject=[
-    {id:'p_default',title:'SRN号申请',desc:'EUDAMED SRN注册追踪',status:'进行中',steps:[
-      {id:'s1',title:'准备资料',content:'收集企业信息、器械分类、技术文件等',images:[],status:'done',completedDate:'2026-01-15'},
-      {id:'s2',title:'在线填写申请',content:'登录EUDAMED填写MDR注册信息',images:[],status:'progress'},
-      {id:'s3',title:'上传文档',content:'上传Annex II技术文件、分类报告等',images:[],status:'pending'},
-      {id:'s4',title:'提交审核',content:'确认信息无误后提交SRN申请',images:[],status:'pending'},
-      {id:'s5',title:'获取SRN号',content:'等待审核通过，获取SRN编号',images:[],status:'pending'}
-    ]}
-  ];
+
   function renderProjectList(){
-    const container=document.getElementById('projectList');if(!container)return;
-    const projects=getProjects();
-    let html='';
-    if(projects.length===0){
-      html='<div style="padding:16px;text-align:center;color:var(--text-muted)">暂无项目，点击下方按钮新建</div>';
-    }
-    projects.forEach(p=>{
-      const doneSteps=p.steps.filter(s=>s.status==='done').length;
-      const totalSteps=p.steps.length;
-      const pct=totalSteps>0?Math.round(doneSteps/totalSteps*100):0;
-      const statusColor=p.status==='进行中'?'var(--primary)':(p.status==='已完成'?'var(--success)':'var(--text-muted)');
-      html+=`<div class="agg-card" style="margin-bottom:10px" onclick="renderProjectDetail('${p.id}')">
-        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:6px">
-          <div style="font-weight:600;color:var(--primary);font-size:14px">${escHtml(p.title)}</div>
-          <span style="color:${statusColor};font-size:12px;font-weight:600">${escHtml(p.status)}</span>
-        </div>
-        <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">${escHtml(p.desc||'')}</div>
-        <div class="progress-bar" style="margin:4px 0"><div class="progress-fill" style="width:${pct}%"></div></div>
-        <div style="font-size:11px;color:var(--text-muted)">进度：${doneSteps}/${totalSteps} 步 · ${pct}%</div>
-        <div style="margin-top:6px"><button onclick="event.stopPropagation();renderProjectDetail('${p.id}')" style="padding:4px 12px;background:var(--primary);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">📂 打开</button></div>
-      </div>`;
-    });
-    html+=`<div style="margin-top:12px"><button onclick="addProject()" style="padding:6px 16px;background:var(--primary);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500">➕ 新增项目</button></div>`;
-    container.innerHTML=html;
-  }
-  function renderProjectDetail(id){
-    const projects=getProjects();
-    const p=projects.find(x=>x.id===id);if(!p)return;
-    const container=document.getElementById('projectDetail');if(!container)return;
-    const doneSteps=p.steps.filter(s=>s.status==='done').length;
-    const totalSteps=p.steps.length;
-    const pct=totalSteps>0?Math.round(doneSteps/totalSteps*100):0;
-    let html=`
-      <div class="card">
-        <h3><i data-lucide="clipboard-list" style="width:16px;height:16px;color:var(--primary);stroke-width:2"></i>${escHtml(p.title)}
-          <div style="margin-left:auto;display:flex;gap:6px">
-            <button onclick="event.stopPropagation();editProject('${p.id}')" style="padding:4px 12px;border:1px solid var(--border);border-radius:6px;background:#fff;cursor:pointer;font-size:12px">✏️ 编辑</button>
-            <button onclick="event.stopPropagation();deleteProject('${p.id}')" style="padding:4px 12px;border:1px solid var(--danger);border-radius:6px;background:#fff;color:var(--danger);cursor:pointer;font-size:12px">🗑 删除</button>
-          </div>
-        </h3>
-        <div style="font-size:13px;color:var(--text-muted);margin-bottom:10px">${escHtml(p.desc||'')}</div>
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-          <span style="font-size:12px;color:var(--text-muted)">状态：</span>
-          <select onchange="updateProjectField('${p.id}','status',this.value)" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px">
-            <option value="进行中" ${p.status==='进行中'?'selected':''}>进行中</option>
-            <option value="已完成" ${p.status==='已完成'?'selected':''}>已完成</option>
-            <option value="已暂停" ${p.status==='已暂停'?'selected':''}>已暂停</option>
-          </select>
-          <div class="progress-bar" style="flex:1;max-width:200px"><div class="progress-fill" style="width:${pct}%"></div></div>
-          <span style="font-size:12px;color:var(--text-muted)">${doneSteps}/${totalSteps} 步</span>
-        </div>
-      </div>
-      <div class="card">
-        <h3><i data-lucide="notebook-pen" style="width:16px;height:16px;color:var(--warning);stroke-width:2"></i>步骤详情</h3>
-        <div id="stepList_${p.id}"></div>
-        <div style="margin-top:12px"><button onclick="addStep('${p.id}')" style="padding:6px 16px;background:var(--primary);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:500">➕ 添加步骤</button></div>
-      </div>
-    `;
-    container.style.display='block';
-    container.innerHTML=html;
-    renderStepList(p);
-  }
-  function renderStepList(p){
-    const list=document.getElementById('stepList_'+p.id);if(!list)return;
-    let html='';
-    p.steps.forEach((s,idx)=>{
-      const statusColors={'pending':'var(--text-muted)','progress':'var(--primary)','done':'var(--success)'};
-      const statusLabels={'pending':'待处理','progress':'进行中','done':'已完成'};
-      const completedDateHtml=s.status==='done'?`<div style="font-size:11px;color:var(--success);margin-top:4px">完成日期：${s.completedDate||'未记录'}</div>`:'';
-      const imagesHtml=s.images&&s.images.length>0?`<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">${s.images.map((img,i)=>`<div style="position:relative"><img src="${img}" style="max-width:80px;max-height:80px;border-radius:6px;border:1px solid var(--border);cursor:pointer" onclick="openStepImage(${JSON.stringify(img).replace(/"/g,'&quot;')})" title="点击查看大图"><button onclick="deleteStepImage('${p.id}','${s.id}',${i})" title="删除图片" style="position:absolute;top:-4px;right:-4px;width:18px;height:18px;border-radius:50%;background:#dc2626;color:#fff;border:none;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">×</button></div>`).join('')}</div>`:'';
-      html+=`<div style="padding:12px;border:1px solid var(--border);border-radius:10px;margin-bottom:10px;background:#fff">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <div style="display:flex;align-items:center;gap:8px">
-            <span style="display:inline-flex;width:24px;height:24px;background:var(--primary);color:#fff;border-radius:50%;align-items:center;justify-content:center;font-size:11px;font-weight:700">${idx+1}</span>
-            <input type="text" id="st_title_${p.id}_${s.id}" value="${escHtml(s.title)}" onchange="updateStep('${p.id}','${s.id}','title',this.value)" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-weight:600;min-width:200px">
-          </div>
-          <div style="display:flex;gap:6px;align-items:center">
-            <select id="st_status_${p.id}_${s.id}" onchange="updateStep('${p.id}','${s.id}','status',this.value)" style="padding:3px 6px;border:1px solid var(--border);border-radius:5px;font-size:11px">
-              <option value="pending" ${s.status==='pending'?'selected':''}>待处理</option>
-              <option value="progress" ${s.status==='progress'?'selected':''}>进行中</option>
-              <option value="done" ${s.status==='done'?'selected':''}>已完成</option>
-            </select>
-            <button onclick="deleteStep('${p.id}','${s.id}')" style="padding:3px 8px;border:1px solid var(--danger);border-radius:5px;background:#fff;color:var(--danger);cursor:pointer;font-size:11px">🗑</button>
-          </div>
-        </div>
-        <textarea id="st_content_${p.id}_${s.id}" style="width:100%;min-height:50px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;resize:vertical" placeholder="步骤内容...（可直接Ctrl+V粘贴图片）" onpaste="handleStepPaste(event,'${p.id}','${s.id}')">${escHtml(s.content||'')}</textarea>
-        <div id="dropzone_${p.id}_${s.id}" style="margin-top:6px;border:2px dashed var(--border);border-radius:8px;padding:8px;transition:all .2s" ondragover="handleStepDragOver(event,this)" ondragleave="handleStepDragLeave(event,this)" ondrop="handleStepImageDrop(event,'${p.id}','${s.id}',this)" onpaste="handleStepPaste(event,'${p.id}','${s.id}')">
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <button onclick="saveStepManual('${p.id}','${s.id}')" style="padding:3px 12px;background:var(--primary);color:#fff;border:none;border-radius:5px;font-size:11px;font-weight:500;cursor:pointer;box-shadow:0 2px 8px rgba(14,165,233,.25)">💾 保存步骤</button>
-            <label style="padding:3px 10px;border:1px solid var(--border);border-radius:5px;font-size:11px;cursor:pointer;background:#fff">📷 上传图片
-              <input type="file" accept="image/*" onchange="uploadStepImage(event,'${p.id}','${s.id}')" style="display:none">
-            </label>
-            <span style="font-size:11px;color:var(--text-muted)">📋 Ctrl+V粘贴图片 · 📥 拖拽图片到本区域</span>
-            ${completedDateHtml}
-          </div>
-          ${imagesHtml}
-        </div>
-      </div>`;
-    });
-    if(p.steps.length===0){
-      html='<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:13px">暂无步骤，点击下方按钮添加</div>';
-    }
-    list.innerHTML=html;
-  }
-  function addProject(){
-    const title=prompt('项目名称：');if(!title)return;
-    const desc=prompt('项目描述：')||'';
-    const arr=getProjects();
-    arr.push({id:'p'+Date.now(),title,desc,status:'进行中',steps:[]});
-    saveProjects(arr);renderProjectList();
-  }
-  function deleteProject(id){
-    {/* BUG1 FIX：删除项目+所有步骤 - 直接执行 */}
-    const arr=getProjects().filter(p=>p.id!==id);
-    saveProjects(arr);
-    document.getElementById('projectDetail').style.display='none';
-    renderProjectList();
-  }
-  function editProject(id){
-    const arr=getProjects();const p=arr.find(x=>x.id===id);if(!p)return;
-    const newTitle=prompt('项目名称：',p.title);
-    if(newTitle!==null)p.title=newTitle;
-    const newDesc=prompt('项目描述：',p.desc||'');
-    if(newDesc!==null)p.desc=newDesc;
-    saveProjects(arr);renderProjectList();renderProjectDetail(id);
-  }
-  function updateProjectField(id,field,val){
-    const arr=getProjects();const p=arr.find(x=>x.id===id);if(!p)return;
-    p[field]=val;saveProjects(arr);renderProjectList();renderProjectDetail(id);
-  }
-  function addStep(projectId){
-    const arr=getProjects();const p=arr.find(x=>x.id===projectId);if(!p)return;
-    const title=prompt('步骤名称：');if(!title)return;
-    p.steps.push({id:'s'+Date.now(),title,content:'',images:[],status:'pending'});
-    saveProjects(arr);renderProjectDetail(projectId);
-  }
-  function deleteStep(projectId,stepId){
-    {/* BUG1 FIX：删除步骤 - 直接执行 */}
-    const arr=getProjects();const p=arr.find(x=>x.id===projectId);if(!p)return;
-    p.steps=p.steps.filter(s=>s.id!==stepId);
-    saveProjects(arr);renderProjectDetail(projectId);
-  }
-  function updateStep(projectId,stepId,field,val,skipRender){
-    const arr=getProjects();const p=arr.find(x=>x.id===projectId);if(!p)return;
-    const s=p.steps.find(x=>x.id===stepId);if(!s)return;
-    s[field]=val;
-    if(field==='status'&&val==='done'&&!s.completedDate){
-      s.completedDate=new Date().toISOString().split('T')[0];
-    }
-    if(field==='status'&&val!=='done'){
-      s.completedDate=null;
-    }
-    saveProjects(arr);
-    if(!skipRender)renderStepList(p);
-  }
-  // ---------- 实操记录步骤图片：迁移到 IndexedDB（step_images） ----------
-  // 规则：
-  //   steps[i].images 存储元素格式：
-  //     新 {id, name, size, kind:'ref'}     ← IndexedDB 引用（推荐）
-  //     旧 "data:image/...;base64,...."     ← 直接嵌入 base64（旧格式，读取时自动迁移）
-  // 预览 / 渲染时统一调用 STEP_resolveImage(refOrBase64)
-  var STEP_IMG_KEY='qms_project_images';
-  function STEP_migrateLegacyStepImages(){
-    if(localStorage.getItem('qms_stepimages_migrated_v1')==='1')return;
-    try{
-      var arr=getProjects();var any=false;
-      for(var p=0;p<arr.length;p++){
-        var proj=arr[p];if(!proj.steps)continue;
-        for(var s=0;s<proj.steps.length;s++){
-          var st=proj.steps[s];if(!st.images||!Array.isArray(st.images))continue;
-          var newImgs=[];var pending=[];
-          for(var i=0;i<st.images.length;i++){
-            var im=st.images[i];
-            if(typeof im==='string'&&im.indexOf('data:image/')===0){
-              pending.push((function(b64,idx){
-                var size=Math.round(b64.length*0.75);
-                var id='stepimg_'+Date.now()+'_'+Math.floor(Math.random()*1e9)+'_'+idx;
-                return GIDB_put('step_images',{id:id,parentId:proj.id+':'+st.id,projectId:proj.id,stepId:st.id,tag:'step_image',name:'step_'+(idx+1)+'.png',size:size,data:b64,uploadedAt:Date.now()}).then(function(){
-                  return {id:id,name:'step_'+(idx+1)+'.png',size:size,kind:'ref'};
-                }).catch(function(){return {kind:'raw',data:b64}});
-              })(im,i));
-            }else if(im&&typeof im==='object'&&im.id){
-              newImgs.push(im);
-            }else{
-              if(im)newImgs.push(im);
-            }
-          }
-          if(pending.length>0){
-            any=true;
-            (function(stRef,projRef,projArr,newArr){
-              Promise.all(pending).then(function(resolved){
-                stRef.images=newArr.concat(resolved).filter(Boolean);
-                saveProjects(projArr);
-              });
-            })(st,proj,arr,newImgs);
-          }else{
-            st.images=newImgs;
-          }
-        }
-      }
-      // 清理 qms_project_images 冗余镜像（已迁移到每个 step 自身的 images）
-      try{localStorage.removeItem(STEP_IMG_KEY)}catch(e){}
-      try{if(any)saveProjects(arr)}catch(e){}
-      localStorage.setItem('qms_stepimages_migrated_v1','1');
-    }catch(e){console.warn('STEP migrateLegacyStepImages failed',e)}
-  }
-  function STEP_saveImageBase64(projectId,stepId,b64,name){
-    var size=Math.round((b64||'').length*0.75);
-    var id='stepimg_'+Date.now()+'_'+Math.floor(Math.random()*1e9);
-    return GIDB_put('step_images',{id:id,parentId:projectId+':'+stepId,projectId:projectId,stepId:stepId,tag:'step_image',name:name||('step_'+Date.now()+'.png'),size:size,data:b64,uploadedAt:Date.now()}).then(function(){
-      return {id:id,name:name||('step_'+Date.now()+'.png'),size:size,kind:'ref'};
-    });
-  }
-  function STEP_resolveImage(ref){
-    if(!ref)return Promise.resolve(null);
-    if(typeof ref==='string')return Promise.resolve(ref); // 旧 base64 直接返回
-    if(ref&&ref.data)return Promise.resolve(ref.data);   // 内嵌 data
-    if(ref&&ref.id){return GIDB_get('step_images',ref.id).then(function(rec){return rec?rec.data:null})}
-    return Promise.resolve(null);
-  }
-  function STEP_deleteImageById(projectId,stepId,imgIdOrIdx){
-    // 同时从 steps.images 移除
-    var arr=getProjects();var p=arr.find(function(x){return x.id===projectId});if(!p)return Promise.resolve();
-    var s=p.steps.find(function(x){return x.id===stepId});if(!s)return Promise.resolve();
-    if(!s.images)s.images=[];
-    var targetIdx=-1;var targetId=null;
-    if(typeof imgIdOrIdx==='number'){
-      targetIdx=imgIdOrIdx;
-      if(s.images[targetIdx]&&s.images[targetIdx].id)targetId=s.images[targetIdx].id;
-    }else{
-      for(var k=0;k<s.images.length;k++){
-        if(s.images[k]&&(s.images[k].id===imgIdOrIdx)){targetIdx=k;targetId=imgIdOrIdx;break}
-      }
-    }
-    if(targetIdx<0)return Promise.resolve();
-    s.images.splice(targetIdx,1);
-    saveProjects(arr);
-    if(targetId){
-      return GIDB_delete('step_images',targetId).catch(function(){});
-    }
-    return Promise.resolve();
-  }
-  // 同步触发一次迁移（异步，不阻塞页面加载）
-  try{setTimeout(function(){STEP_migrateLegacyStepImages()},800)}catch(e){}
-  function uploadStepImage(event,projectId,stepId){
-    var file=event.target.files[0];if(!file)return;
-    var reader=new FileReader();
-    reader.onload=function(e){
-      STEP_saveImageBase64(projectId,stepId,e.target.result,file.name).then(function(ref){
-        var arr=getProjects();var p=arr.find(function(x){return x.id===projectId});if(!p)return;
-        var s=p.steps.find(function(x){return x.id===stepId});if(!s)return;
-        if(!s.images)s.images=[];
-        s.images.push(ref);
-        saveProjects(arr);
-        renderStepList(p);
-      }).catch(function(err){toast('上传步骤图片失败：'+(err&&err.message?err.message:err))});
-    };
-    reader.onerror=function(){toast('文件读取失败')};
-    reader.readAsDataURL(file);
-    event.target.value='';
-  }
-  // 拖拽图片到步骤区域
-  function handleStepDragOver(event,el){
-    event.preventDefault();
-    event.stopPropagation();
-    el.style.borderColor='var(--primary)';
-    el.style.background='var(--primary-bg)';
-  }
-  function handleStepDragLeave(event,el){
-    event.preventDefault();
-    event.stopPropagation();
-    el.style.borderColor='var(--border)';
-    el.style.background='';
-  }
-  function handleStepImageDrop(event,projectId,stepId,el){
-    event.preventDefault();
-    event.stopPropagation();
-    el.style.borderColor='var(--border)';
-    el.style.background='';
-    var files=event.dataTransfer.files;
-    if(!files||files.length===0)return;
-    var arr=getProjects();var p=arr.find(function(x){return x.id===projectId});if(!p)return;
-    var s=p.steps.find(function(x){return x.id===stepId});if(!s)return;
-    if(!s.images)s.images=[];
-    var processed=0;var total=files.length;
-    for(var i=0;i<files.length;i++){
-      var file=files[i];
-      if(!file.type.startsWith('image/'))continue;
-      (function(file){
-        var reader=new FileReader();
-        reader.onload=function(e){
-          STEP_saveImageBase64(projectId,stepId,e.target.result,file.name).then(function(ref){
-            s.images.push(ref);processed++;
-            if(processed>=total){saveProjects(arr);renderStepList(p)}
-          }).catch(function(){processed++;if(processed>=total){saveProjects(arr);renderStepList(p)}});
-        };
-        reader.readAsDataURL(file);
-      })(file);
-    }
-  }
-  // 粘贴图片到步骤区域（Ctrl+V）
-  function handleStepPaste(event,projectId,stepId){
-    var items=event.clipboardData&&event.clipboardData.items;
-    if(!items)return;
-    for(var i=0;i<items.length;i++){
-      if(items[i].type.startsWith('image/')){
-        var file=items[i].getAsFile();
-        if(!file)continue;
-        event.preventDefault();
-        (function(file){
-          var reader=new FileReader();
-          reader.onload=function(e){
-            STEP_saveImageBase64(projectId,stepId,e.target.result,file.name||'pasted_image.png').then(function(ref){
-              var arr=getProjects();var p=arr.find(function(x){return x.id===projectId});if(!p)return;
-              var s=p.steps.find(function(x){return x.id===stepId});if(!s)return;
-              if(!s.images)s.images=[];
-              s.images.push(ref);
-              saveProjects(arr);
-              renderStepList(p);
-            }).catch(function(err){toast('粘贴图片失败：'+(err&&err.message?err.message:err))});
-          };
-          reader.readAsDataURL(file);
-        })(file);
-      }
-    }
-  }
-  // 删除步骤中的图片
-  function deleteStepImage(projectId,stepId,imgIdx){
-    {/* BUG1 FIX：删除图片 - 直接执行 */}
-    STEP_deleteImageById(projectId,stepId,imgIdx).then(function(){
-      var p=getProjects().find(function(x){return x.id===projectId});
-      if(p)renderStepList(p);
-    });
-  }
-  // 渲染步骤列表缩略图：resolve 出来的真实 base64 塞到 <img src>
-  // （为简化，先用占位 data:image，加载完后异步替换真实 src）
-  function renderStepList(p){
-    var list=document.getElementById('stepList_'+p.id);if(!list)return;
+    var container=document.getElementById('projectList');if(!container)return;
+    var projects=getProjects();
     var html='';
+    if(projects.length===0){
+      html='<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:13px">暂无项目，点击下方按钮创建</div>';
+    }else{
+      projects.forEach(function(p){
+        var doneCount=p.steps.filter(function(s){return s.status==='done'}).length;
+        var totalCount=p.steps.length;
+        var progress=totalCount>0?Math.round(doneCount/totalCount*100):0;
+        html+='<div class="agg-card" style="margin-bottom:10px" onclick="openProjectDetail(\''+p.id+'\')">'+
+          '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'+
+            '<div style="font-weight:600;font-size:14px;color:var(--text)">'+escHtml(p.title)+'</div>'+
+            '<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:var(--bg-light);color:var(--text-muted)">'+doneCount+'/'+totalCount+' 步骤 · '+progress+'%</span>'+
+          '</div>'+
+          (p.desc?'<div style="font-size:12px;color:var(--text-muted);margin-top:4px">'+escHtml(p.desc)+'</div>':'')+
+          '<div style="margin-top:8px;height:4px;background:var(--bg-light);border-radius:2px;overflow:hidden">'+
+            '<div style="height:100%;width:'+progress+'%;background:var(--success);transition:width .3s"></div>'+
+          '</div>'+
+          '<div style="margin-top:8px;display:flex;gap:6px">'+
+            '<button onclick="event.stopPropagation();openProjectDetail(\''+p.id+'\')" style="padding:4px 12px;background:var(--primary);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">📂 打开</button>'+
+            '<button onclick="event.stopPropagation();renameProject(\''+p.id+'\')" style="padding:4px 12px;background:#fff;color:var(--text);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:12px">✏️ 重命名</button>'+
+            '<button onclick="event.stopPropagation();deleteProject(\''+p.id+'\')" style="padding:4px 12px;background:#fff;color:var(--danger);border:1px solid var(--danger);border-radius:6px;cursor:pointer;font-size:12px">🗑 删除</button>'+
+          '</div>'+
+        '</div>';
+      });
+    }
+    html+='<div style="margin-top:12px"><button onclick="addProject()" style="padding:6px 16px;background:var(--primary);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500">➕ 新增项目</button></div>';
+    container.innerHTML=html;
+  }
+
+  function openProjectDetail(projectId){
+    _currentStepId=null;
+    renderProjectDetail(projectId);
+  }
+
+  function renderProjectDetail(id){
+    var container=document.getElementById('projectDetail');if(!container)return;
+    var projects=getProjects();
+    var p=projects.find(function(x){return x.id===id});
+    if(!p){container.style.display='none';return;}
+    container.style.display='block';
+
+    // 如果没有选中步骤，默认选第一个
+    if(!_currentStepId||!p.steps.find(function(s){return s.id===_currentStepId})){
+      _currentStepId=p.steps.length>0?p.steps[0].id:null;
+    }
+
+    // 左侧步骤目录
+    var stepNav='';
     p.steps.forEach(function(s,idx){
-      var statusColors={'pending':'var(--text-muted)','progress':'var(--primary)','done':'var(--success)'};
-      var statusLabels={'pending':'待处理','progress':'进行中','done':'已完成'};
-      var completedDateHtml=s.status==='done'?'<div style="font-size:11px;color:var(--success);margin-top:4px">完成日期：'+(s.completedDate||'未记录')+'</div>':'';
-      var imagesHtml='';
-      if(s.images&&s.images.length>0){
-        imagesHtml='<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">';
-        s.images.forEach(function(imgRef,i){
-          var placeholder='data:image/svg+xml;charset=UTF-8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><rect width="80" height="80" fill="#e0f2fe"/><text x="50%" y="50%" font-size="12" text-anchor="middle" dominant-baseline="middle" fill="#0ea5e9">加载中…</text></svg>');
-          var safeKey='stepimg_'+p.id+'_'+s.id+'_'+i+'_'+Math.floor(Math.random()*1e9);
-          // 先用占位，加载完成后替换
-          setTimeout((function(ref,sk){return function(){
-            STEP_resolveImage(ref).then(function(dataUrl){
-              var imgEl=document.getElementById(sk);
-              if(imgEl&&dataUrl){
-                imgEl.src=dataUrl;
-                imgEl.onclick=(function(d){return function(){openStepImage(d)}})(dataUrl);
-              }
-            });
-          }})(imgRef,safeKey),0);
-          imagesHtml+='<div style="position:relative"><img id="'+safeKey+'" src="'+placeholder+'" style="max-width:80px;max-height:80px;border-radius:6px;border:1px solid var(--border);cursor:pointer" title="图片加载中，点击后可预览（若未加载请稍等）"><button onclick="deleteStepImage(\''+p.id+'\',\''+s.id+'\','+i+')" title="删除图片" style="position:absolute;top:-4px;right:-4px;width:18px;height:18px;border-radius:50%;background:#dc2626;color:#fff;border:none;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">×</button></div>';
-        });
-        imagesHtml+='</div>';
-      }
-      html+='<div style="padding:12px;border:1px solid var(--border);border-radius:10px;margin-bottom:10px;background:#fff">'+
-        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'+
-          '<div style="display:flex;align-items:center;gap:8px">'+
-            '<span style="display:inline-flex;width:24px;height:24px;background:var(--primary);color:#fff;border-radius:50%;align-items:center;justify-content:center;font-size:11px;font-weight:700">'+(idx+1)+'</span>'+
-            '<input type="text" id="st_title_'+p.id+'_'+s.id+'" value="'+escHtml(s.title)+'" onchange="updateStep(\''+p.id+'\',\''+s.id+'\',\'title\',this.value)" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-weight:600;min-width:200px">'+
-          '</div>'+
-          '<div style="display:flex;gap:6px;align-items:center">'+
-            '<select id="st_status_'+p.id+'_'+s.id+'" onchange="updateStep(\''+p.id+'\',\''+s.id+'\',\'status\',this.value)" style="padding:3px 6px;border:1px solid var(--border);border-radius:5px;font-size:11px">'+
-              '<option value="pending" '+(s.status==='pending'?'selected':'')+'>待处理</option>'+
-              '<option value="progress" '+(s.status==='progress'?'selected':'')+'>进行中</option>'+
-              '<option value="done" '+(s.status==='done'?'selected':'')+'>已完成</option>'+
-            '</select>'+
-            '<button onclick="deleteStep(\''+p.id+'\',\''+s.id+'\')" style="padding:3px 8px;border:1px solid var(--danger);border-radius:5px;background:#fff;color:var(--danger);cursor:pointer;font-size:11px">🗑</button>'+
-          '</div>'+
-        '</div>'+
-        '<textarea id="st_content_'+p.id+'_'+s.id+'" style="width:100%;min-height:50px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;resize:vertical" placeholder="步骤内容...（可直接Ctrl+V粘贴图片）" onpaste="handleStepPaste(event,\''+p.id+'\',\''+s.id+'\')">'+escHtml(s.content||'')+'</textarea>'+
-        '<div id="dropzone_'+p.id+'_'+s.id+'" style="margin-top:6px;border:2px dashed var(--border);border-radius:8px;padding:8px;transition:all .2s" ondragover="handleStepDragOver(event,this)" ondragleave="handleStepDragLeave(event,this)" ondrop="handleStepImageDrop(event,\''+p.id+'\',\''+s.id+'\',this)" onpaste="handleStepPaste(event,\''+p.id+'\',\''+s.id+'\')">'+
-          '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'+
-            '<button onclick="saveStepManual(\''+p.id+'\',\''+s.id+'\')" style="padding:3px 12px;background:var(--primary);color:#fff;border:none;border-radius:5px;font-size:11px;font-weight:500;cursor:pointer;box-shadow:0 2px 8px rgba(14,165,233,.25)">💾 保存步骤</button> '+
-            '<label style="padding:3px 10px;border:1px solid var(--border);border-radius:5px;font-size:11px;cursor:pointer;background:#fff">📷 上传图片'+
-              '<input type="file" accept="image/*" onchange="uploadStepImage(event,\''+p.id+'\',\''+s.id+'\')" style="display:none">'+
-            '</label> '+
-            '<span style="font-size:11px;color:var(--text-muted)">📋 Ctrl+V粘贴图片 · 📥 拖拽图片到本区域</span> '+
-            completedDateHtml+
-          '</div>'+
-          imagesHtml+
-        '</div>'+
+      var isActive=s.id===_currentStepId;
+      var statusIcon=s.status==='done'?'✅':(s.status==='progress'?'🔄':'⬜');
+      stepNav+='<div onclick="selectStep(\''+p.id+'\',\''+s.id+'\')" style="padding:8px 10px;border-radius:6px;cursor:pointer;margin-bottom:4px;display:flex;align-items:center;gap:8px;transition:all .15s;'+(isActive?'background:var(--primary);color:#fff':'background:var(--bg-light);color:var(--text)')+'" onmouseover="if(!'+isActive+')this.style.background=\'var(--border)\'" onmouseout="if(!'+isActive+')this.style.background=\'var(--bg-light)\'">'+
+        '<span style="display:inline-flex;width:22px;height:22px;border-radius:50%;align-items:center;justify-content:center;font-size:11px;font-weight:700;'+(isActive?'background:rgba(255,255,255,.25)':'background:var(--primary);color:#fff')+'">'+(idx+1)+'</span>'+
+        '<span style="flex:1;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(s.title)+'</span>'+
+        '<span style="font-size:12px">'+statusIcon+'</span>'+
       '</div>';
     });
-    if(p.steps.length===0){
-      html='<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:13px">暂无步骤，点击下方按钮添加</div>';
+    stepNav+='<button onclick="addStep(\''+p.id+'\')" style="width:100%;padding:6px;margin-top:8px;background:var(--bg-light);color:var(--primary);border:1px dashed var(--border);border-radius:6px;cursor:pointer;font-size:12px">➕ 添加步骤</button>';
+
+    // 右侧当前步骤详情
+    var stepDetail='';
+    var currentStep=p.steps.find(function(s){return s.id===_currentStepId});
+    if(currentStep){
+      stepDetail=renderStepDetail(p,currentStep);
+    }else{
+      stepDetail='<div style="padding:40px;text-align:center;color:var(--text-muted)">暂无步骤，点击左侧"添加步骤"开始</div>';
     }
-    list.innerHTML=html;
+
+    container.innerHTML='<div class="card" style="padding:0;overflow:hidden">'+
+      '<div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">'+
+        '<div><strong style="font-size:15px">'+escHtml(p.title)+'</strong>'+(p.desc?' <span style="font-size:12px;color:var(--text-muted)">· '+escHtml(p.desc)+'</span>':'')+'</div>'+
+        '<button onclick="renderProjectList();document.getElementById(\'projectDetail\').style.display=\'none\'" style="padding:4px 10px;background:#fff;border:1px solid var(--border);border-radius:5px;cursor:pointer;font-size:12px">← 返回项目列表</button>'+
+      '</div>'+
+      '<div class="practice-layout" style="display:flex;gap:0;min-height:400px">'+
+        '<div class="practice-sidebar" style="width:220px;min-width:220px;border-right:1px solid var(--border);padding:12px;background:var(--bg-light);overflow-y:auto;max-height:70vh">'+
+          '<div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase">步骤目录 ('+p.steps.length+')</div>'+
+          stepNav+
+        '</div>'+
+        '<div class="practice-main" style="flex:1;padding:16px;overflow-y:auto;max-height:70vh">'+
+          stepDetail+
+        '</div>'+
+      '</div>'+
+    '</div>';
+
+    // 响应式：窄屏时添加样式
+    addPracticeResponsiveStyle();
+    // 异步加载步骤图片（IndexedDB）
+    setTimeout(function(){
+      var imgs=container.querySelectorAll('img[data-ref]');
+      imgs.forEach(function(img){
+        var ref=img.getAttribute('data-ref');
+        if(ref&&typeof STEP_resolveImage==='function'){
+          STEP_resolveImage(ref).then(function(d){
+            if(d){img.src=d;img.style.opacity='1';}
+          }).catch(function(){});
+        }
+      });
+    },50);
   }
-  // 打开实操记录中的大图（使用弹窗+Blob URL，解决base64过长打不开的问题）
-  function openStepImage(imgData){
-    if(!imgData)return;
-    try{
-      // 1. 优先用弹窗展示，体验更好
-      const modal=document.getElementById('previewModal');
-      const title=document.getElementById('previewTitle');
-      const body=document.getElementById('previewBody');
-      title.textContent='🖼 步骤图片预览';
-      body.innerHTML=`<div style="padding:20px;display:flex;flex-direction:column;align-items:center;gap:16px">
-        <img src="${imgData}" style="max-width:100%;max-height:70vh;border-radius:12px;box-shadow:0 8px 30px rgba(2,132,199,.2)">
-        <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
-          <a href="${imgData}" download="step_image_${Date.now()}.png" style="padding:8px 18px;background:var(--primary);color:#fff;border-radius:10px;text-decoration:none;font-size:13px;font-weight:500;cursor:pointer">⬇️ 下载图片</a>
-          <button onclick="openStepImageNewTab('${imgData.substring(0,50)}...')" style="padding:8px 18px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer" title="若新标签页无法打开请用下载按钮">🔗 新窗口打开</button>
-          <button onclick="closePreview()" style="padding:8px 18px;background:#fee2e2;color:#b91c1c;border:none;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer">✖ 关闭</button>
-        </div>
-        <p style="font-size:12px;color:var(--text-muted);margin:0">💡 如果图片无法在新窗口打开，请点击「下载图片」保存到本地查看</p>
-      </div>`;
-      modal.classList.add('show');
-    }catch(e){
-      // 2. 失败时降级为Blob方式下载
-      toast('图片预览失败，建议点击缩略图右上角或下载查看');
-    }
+
+  function addPracticeResponsiveStyle(){
+    if(document.getElementById('practice-v2-style'))return;
+    var style=document.createElement('style');
+    style.id='practice-v2-style';
+    style.textContent='@media(max-width:768px){.practice-layout{flex-direction:column!important}.practice-sidebar{width:100%!important;min-width:0!important;border-right:none!important;border-bottom:1px solid var(--border);max-height:none!important}.practice-main{max-height:none!important}}';
+    document.head.appendChild(style);
   }
-  // 用Blob URL方式在新标签打开大图（兼容超长base64）
-  function openStepImageNewTab(_hint){
-    // 获取当前展示的img的src（从previewBody中取）
-    const body=document.getElementById('previewBody');
-    const img=body.querySelector('img');
-    if(!img||!img.src)return;
-    try{
-      // base64 转 Blob
-      const data=img.src;
-      const arr=data.split(',');
-      const mime=arr[0].match(/:(.*?);/)[1];
-      const bstr=atob(arr[1]);
-      let n=bstr.length;
-      const u8arr=new Uint8Array(n);
-      while(n--){u8arr[n]=bstr.charCodeAt(n)}
-      const blob=new Blob([u8arr],{type:mime});
-      const url=URL.createObjectURL(blob);
-      const w=window.open(url,'_blank');
-      // 延迟释放（等新窗口加载完成）
-      setTimeout(()=>{try{URL.revokeObjectURL(url)}catch(e){}},5000);
-      if(!w){
-        toast('浏览器阻止了弹窗，请允许弹窗后重试，或使用下载按钮');
-      }
-    }catch(err){
-      toast('新窗口打开失败：'+err.message+'，请使用下载按钮保存图片后查看');
-    }
+
+  function selectStep(projectId,stepId){
+    _currentStepId=stepId;
+    renderProjectDetail(projectId);
   }
-  // 手动保存步骤（标题+详情内容一次性保存，给用户明确反馈）
-  function saveStepManual(projectId,stepId){
-    const titleEl=document.getElementById('st_title_'+projectId+'_'+stepId);
-    const contentEl=document.getElementById('st_content_'+projectId+'_'+stepId);
-    const statusEl=document.getElementById('st_status_'+projectId+'_'+stepId);
-    const arr=getProjects();const p=arr.find(x=>x.id===projectId);if(!p)return;
-    const s=p.steps.find(x=>x.id===stepId);if(!s)return;
-    let changed=false;
-    if(titleEl&&titleEl.value!==undefined&&s.title!==titleEl.value){
-      s.title=titleEl.value;changed=true;
+
+  function renderStepDetail(p,s){
+    var idx=p.steps.findIndex(function(x){return x.id===s.id});
+    var hasImages=s.images&&s.images.length>0;
+    var hasAttachments=s.attachments&&s.attachments.length>0;
+    var hasMedia=hasImages||hasAttachments;
+
+    // 图片横向滚动
+    var imagesHtml='';
+    if(hasImages){
+      imagesHtml='<div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:8px;scroll-behavior:smooth" id="stepImgScroll_'+p.id+'_'+s.id+'">';
+      s.images.forEach(function(imgRef,i){
+        imagesHtml+='<div style="position:relative;flex-shrink:0;max-height:280px" draggable="true" ondragstart="handleImgDragStart(event,\''+p.id+'\',\''+s.id+'\','+i+')" ondragover="handleImgDragOver(event)" ondrop="handleImgDrop(event,\''+p.id+'\',\''+s.id+'\','+i+')" ondragend="handleImgDragEnd(event)">'+
+          '<img src="" data-ref="'+escHtml(imgRef)+'" style="max-height:280px;border-radius:8px;border:1px solid var(--border);cursor:zoom-in;display:block" onclick="openStepImageByRef(\''+escHtml(imgRef)+'\')" onload="this.style.opacity=1" >'+
+          '<button onclick="deleteStepImage(\''+p.id+'\',\''+s.id+'\','+i+')" title="删除图片" style="position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;background:#dc2626;color:#fff;border:none;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;box-shadow:0 2px 6px rgba(0,0,0,.2)">×</button>'+
+          '<span style="position:absolute;bottom:4px;left:4px;background:rgba(0,0,0,.6);color:#fff;font-size:10px;padding:1px 6px;border-radius:3px">'+(i+1)+'/'+s.images.length+'</span>'+
+        '</div>';
+      });
+      imagesHtml+='</div>';
     }
-    if(contentEl&&contentEl.value!==undefined&&s.content!==contentEl.value){
-      s.content=contentEl.value;changed=true;
+
+    // 附件列表
+    var attachmentsHtml='';
+    if(hasAttachments){
+      attachmentsHtml='<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px">';
+      s.attachments.forEach(function(att,ai){
+        var icon=att.type&&att.type.indexOf('pdf')>=0?'📕':(att.type&&att.type.indexOf('word')>=0||att.name&&att.name.match(/\.(doc|docx)$/i)?'📘':(att.type&&att.type.indexOf('sheet')>=0||att.name&&att.name.match(/\.(xls|xlsx|csv)$/i)?'📗':'📎'));
+        attachmentsHtml+='<div style="display:flex;align-items:center;gap:6px;padding:4px 10px;background:var(--bg-light);border:1px solid var(--border);border-radius:6px;font-size:12px">'+
+          '<span>'+icon+'</span>'+
+          '<a href="javascript:void(0)" onclick="downloadStepAttachment(\''+p.id+'\',\''+s.id+'\','+ai+')" style="color:var(--primary);text-decoration:none;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtml(att.name)+'</a>'+
+          '<span style="color:var(--text-muted);font-size:10px">'+(att.size?Math.round(att.size/1024)+'KB':'')+'</span>'+
+          '<span onclick="deleteStepAttachment(\''+p.id+'\',\''+s.id+'\','+ai+')" style="cursor:pointer;color:var(--danger);font-weight:bold">×</span>'+
+        '</div>';
+      });
+      attachmentsHtml+='</div>';
     }
-    if(statusEl&&statusEl.value){
-      updateStep(projectId,stepId,'status',statusEl.value,true);
-      // 上面的updateStep已经调用了saveProjects
-      changed=true;
-    }else if(changed){
-      saveProjects(arr);
+
+    // 媒体区（图片+附件）
+    var mediaHtml='';
+    if(hasMedia){
+      mediaHtml='<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">'+
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'+
+          '<strong style="font-size:13px">📷 截图 & 附件</strong>'+
+          '<div style="display:flex;gap:6px">'+
+            '<label style="padding:4px 10px;border:1px solid var(--border);border-radius:5px;font-size:11px;cursor:pointer;background:#fff">📷 上传截图'+
+              '<input type="file" accept="image/*" multiple onchange="uploadStepImage(event,\''+p.id+'\',\''+s.id+'\')" style="display:none">'+
+            '</label>'+
+            '<label style="padding:4px 10px;border:1px solid var(--border);border-radius:5px;font-size:11px;cursor:pointer;background:#fff">📎 上传附件'+
+              '<input type="file" multiple onchange="uploadStepAttachment(event,\''+p.id+'\',\''+s.id+'\')" style="display:none">'+
+            '</label>'+
+          '</div>'+
+        '</div>'+
+        imagesHtml+
+        attachmentsHtml+
+        '<div style="margin-top:8px;font-size:11px;color:var(--text-muted)">💡 提示：可直接 Ctrl+V 粘贴截图，或拖拽图片调整顺序</div>'+
+      '</div>';
+    }else{
+      // 无媒体时显示上传区
+      mediaHtml='<div style="margin-top:16px;padding:20px;border:2px dashed var(--border);border-radius:8px;text-align:center" onpaste="handleStepPaste(event,\''+p.id+'\',\''+s.id+'\')" ondragover="handleStepDragOver(event,this)" ondragleave="handleStepDragLeave(event,this)" ondrop="handleStepImageDrop(event,\''+p.id+'\',\''+s.id+'\',this)">'+
+        '<div style="font-size:24px;margin-bottom:8px">📷</div>'+
+        '<div style="font-size:13px;color:var(--text-muted);margin-bottom:10px">暂无截图或附件</div>'+
+        '<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">'+
+          '<label style="padding:6px 14px;background:var(--primary);color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer">📷 上传截图'+
+            '<input type="file" accept="image/*" multiple onchange="uploadStepImage(event,\''+p.id+'\',\''+s.id+'\')" style="display:none">'+
+          '</label>'+
+          '<label style="padding:6px 14px;background:#fff;color:var(--text);border:1px solid var(--border);border-radius:6px;font-size:12px;cursor:pointer">📎 上传附件'+
+            '<input type="file" multiple onchange="uploadStepAttachment(event,\''+p.id+'\',\''+s.id+'\')" style="display:none">'+
+          '</label>'+
+        '</div>'+
+        '<div style="margin-top:8px;font-size:11px;color:var(--text-muted)">或直接 Ctrl+V 粘贴截图 · 拖拽图片到此处</div>'+
+      '</div>';
     }
-    // 给用户保存成功的视觉反馈
-    const btns=document.querySelectorAll(`[onclick="saveStepManual('${projectId}','${stepId}')"]`);
-    btns.forEach(btn=>{
-      const origText=btn.textContent;
-      const origBg=btn.style.background;
-      btn.textContent='✅ 已保存';
-      btn.style.background='var(--success)';
-      setTimeout(()=>{btn.textContent=origText;btn.style.background=origBg||'';},1200);
+
+    // 文字区（上半部分）
+    var textHtml='<div>'+
+      // 标题行
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">'+
+        '<div style="display:flex;align-items:center;gap:10px;flex:1;min-width:200px">'+
+          '<span style="display:inline-flex;width:28px;height:28px;background:var(--primary);color:#fff;border-radius:50%;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0">'+(idx+1)+'</span>'+
+          '<input type="text" id="st_title_'+p.id+'_'+s.id+'" value="'+escHtml(s.title)+'" onchange="updateStep(\''+p.id+'\',\''+s.id+'\',\'title\',this.value)" style="flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;font-weight:600;min-width:150px">'+
+        '</div>'+
+        '<div style="display:flex;gap:6px;align-items:center">'+
+          '<select id="st_status_'+p.id+'_'+s.id+'" onchange="updateStep(\''+p.id+'\',\''+s.id+'\',\'status\',this.value)" style="padding:4px 8px;border:1px solid var(--border);border-radius:5px;font-size:12px">'+
+            '<option value="pending"'+(s.status==='pending'?' selected':'')+'>⬜ 待处理</option>'+
+            '<option value="progress"'+(s.status==='progress'?' selected':'')+'>🔄 进行中</option>'+
+            '<option value="done"'+(s.status==='done'?' selected':'')+'>✅ 已完成</option>'+
+          '</select>'+
+          (idx>0?'<button onclick="moveStep(\''+p.id+'\',\''+s.id+'\',-1)" style="padding:4px 8px;border:1px solid var(--border);border-radius:5px;background:#fff;cursor:pointer;font-size:12px" title="上移">↑</button>':'')+
+          (idx<p.steps.length-1?'<button onclick="moveStep(\''+p.id+'\',\''+s.id+'\',1)" style="padding:4px 8px;border:1px solid var(--border);border-radius:5px;background:#fff;cursor:pointer;font-size:12px" title="下移">↓</button>':'')+
+          '<button onclick="deleteStep(\''+p.id+'\',\''+s.id+'\')" style="padding:4px 8px;border:1px solid var(--danger);border-radius:5px;background:#fff;color:var(--danger);cursor:pointer;font-size:12px" title="删除步骤">🗑</button>'+
+        '</div>'+
+      '</div>'+
+      // 步骤内容
+      '<div style="margin-bottom:12px">'+
+        '<label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px">📝 步骤内容</label>'+
+        '<textarea id="st_content_'+p.id+'_'+s.id+'" onpaste="handleStepPaste(event,\''+p.id+'\',\''+s.id+'\')" onblur="updateStep(\''+p.id+'\',\''+s.id+'\',\'content\',this.value)" style="width:100%;min-height:70px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;resize:vertical" placeholder="描述这个步骤的操作过程...（可直接Ctrl+V粘贴图片）">'+escHtml(s.content||'')+'</textarea>'+
+      '</div>'+
+      // 操作要点 + 注意事项 双栏
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">'+
+        '<div>'+
+          '<label style="font-size:12px;font-weight:600;color:var(--success);display:block;margin-bottom:4px">✅ 操作要点</label>'+
+          '<textarea onblur="updateStep(\''+p.id+'\',\''+s.id+'\',\'keyPoints\',this.value)" style="width:100%;min-height:60px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;resize:vertical;background:#f0fdf4" placeholder="关键操作步骤、快捷键、命令...">'+escHtml(s.keyPoints||'')+'</textarea>'+
+        '</div>'+
+        '<div>'+
+          '<label style="font-size:12px;font-weight:600;color:var(--warning);display:block;margin-bottom:4px">⚠️ 注意事项</label>'+
+          '<textarea onblur="updateStep(\''+p.id+'\',\''+s.id+'\',\'notes\',this.value)" style="width:100%;min-height:60px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;resize:vertical;background:#fffbeb" placeholder="容易出错的地方、风险提示...">'+escHtml(s.notes||'')+'</textarea>'+
+        '</div>'+
+      '</div>'+
+      // 保存按钮
+      '<div style="display:flex;gap:8px;align-items:center">'+
+        '<button onclick="saveStepManual(\''+p.id+'\',\''+s.id+'\')" style="padding:6px 16px;background:var(--primary);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:500">💾 保存步骤</button>'+
+        (s.status==='done'&&s.completedDate?'<span style="font-size:11px;color:var(--success)">完成于 '+s.completedDate+'</span>':'')+
+      '</div>'+
+    '</div>';
+
+    return textHtml+mediaHtml;
+  }
+
+  function addProject(){
+    var title=prompt('项目名称：');if(!title)return;
+    var desc=prompt('项目描述（可选）：')||'';
+    var arr=getProjects();
+    arr.push({id:'p'+Date.now(),title:title,desc:desc,status:'进行中',steps:[]});
+    saveProjects(arr);renderProjectList();
+  }
+
+  function renameProject(id){
+    var arr=getProjects();var p=arr.find(function(x){return x.id===id});if(!p)return;
+    var newTitle=prompt('新的项目名称：',p.title);if(!newTitle)return;
+    p.title=newTitle;
+    var newDesc=prompt('项目描述（可选）：',p.desc||'');
+    if(newDesc!==null)p.desc=newDesc;
+    saveProjects(arr);renderProjectList();
+    if(document.getElementById('projectDetail').style.display!=='none')renderProjectDetail(id);
+  }
+
+  function deleteProject(id){
+    if(!confirm('确定删除这个项目？所有步骤和数据将被删除。'))return;
+    var arr=getProjects().filter(function(x){return x.id!==id});
+    saveProjects(arr);renderProjectList();
+    document.getElementById('projectDetail').style.display='none';
+  }
+
+  function addStep(projectId){
+    var title=prompt('步骤名称：');if(!title)return;
+    var arr=getProjects();var p=arr.find(function(x){return x.id===projectId});if(!p)return;
+    var newStep={id:'s'+Date.now(),title:title,content:'',keyPoints:'',notes:'',images:[],attachments:[],status:'pending'};
+    p.steps.push(newStep);
+    saveProjects(arr);
+    _currentStepId=newStep.id;
+    renderProjectDetail(projectId);
+  }
+
+  function deleteStep(projectId,stepId){
+    if(!confirm('确定删除这个步骤？'))return;
+    var arr=getProjects();var p=arr.find(function(x){return x.id===projectId});if(!p)return;
+    p.steps=p.steps.filter(function(s){return s.id!==stepId});
+    saveProjects(arr);
+    if(_currentStepId===stepId)_currentStepId=p.steps.length>0?p.steps[0].id:null;
+    renderProjectDetail(projectId);
+  }
+
+  function moveStep(projectId,stepId,direction){
+    var arr=getProjects();var p=arr.find(function(x){return x.id===projectId});if(!p)return;
+    var idx=p.steps.findIndex(function(s){return s.id===stepId});
+    if(idx<0)return;
+    var newIdx=idx+direction;
+    if(newIdx<0||newIdx>=p.steps.length)return;
+    var temp=p.steps[idx];p.steps[idx]=p.steps[newIdx];p.steps[newIdx]=temp;
+    saveProjects(arr);renderProjectDetail(projectId);
+  }
+
+  function updateStep(projectId,stepId,field,val,skipRender){
+    var arr=getProjects();var p=arr.find(function(x){return x.id===projectId});if(!p)return;
+    var s=p.steps.find(function(x){return x.id===stepId});if(!s)return;
+    s[field]=val;
+    if(field==='status'&&val==='done'&&!s.completedDate){s.completedDate=new Date().toISOString().slice(0,10);}
+    if(field==='status'&&val!=='done'){s.completedDate='';}
+    saveProjects(arr);
+    if(!skipRender)renderProjectDetail(projectId);
+  }
+
+  /* ========== IndexedDB 图片存储 ========== */
+  function STEP_getDB(){
+    return new Promise(function(resolve,reject){
+      var req=indexedDB.open('qms_step_images',1);
+      req.onupgradeneeded=function(e){
+        var db=e.target.result;
+        if(!db.objectStoreNames.contains('images')){db.createObjectStore('images',{keyPath:'id'});}
+      };
+      req.onsuccess=function(){resolve(req.result);};
+      req.onerror=function(){reject(req.error);};
     });
-    // 重新渲染以更新状态（比如完成日期等），但不打断焦点
-    const p2=getProjects().find(x=>x.id===projectId);
-    if(p2)renderStepList(p2);
   }
+
+  function STEP_storeImage(dataUrl){
+    return STEP_getDB().then(function(db){
+      return new Promise(function(resolve,reject){
+        var id='img_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
+        var tx=db.transaction('images','readwrite');
+        tx.objectStore('images').put({id:id,dataUrl:dataUrl});
+        tx.oncomplete=function(){resolve(id);};
+        tx.onerror=function(){reject(tx.error);};
+      });
+    });
+  }
+
+  function STEP_resolveImage(ref){
+    if(!ref)return Promise.resolve(null);
+    if(ref.indexOf('data:')===0||ref.indexOf('http')===0)return Promise.resolve(ref);
+    return STEP_getDB().then(function(db){
+      return new Promise(function(resolve){
+        var tx=db.transaction('images','readonly');
+        var req=tx.objectStore('images').get(ref);
+        req.onsuccess=function(){resolve(req.result?req.result.dataUrl:null);};
+        req.onerror=function(){resolve(null);};
+      });
+    }).catch(function(){return null;});
+  }
+
+  /* ========== 图片上传 ========== */
+  function uploadStepImage(event,projectId,stepId){
+    var files=event.target.files;if(!files||files.length===0)return;
+    Array.from(files).forEach(function(file){
+      if(!file.type.startsWith('image/'))return;
+      var reader=new FileReader();
+      reader.onload=function(e){
+        STEP_storeImage(e.target.result).then(function(imgId){
+          var arr=getProjects();var p=arr.find(function(x){return x.id===projectId});if(!p)return;
+          var s=p.steps.find(function(x){return x.id===stepId});if(!s)return;
+          if(!s.images)s.images=[];
+          s.images.push(imgId);
+          saveProjects(arr);renderProjectDetail(projectId);
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+    event.target.value='';
+  }
+
+  function handleStepPaste(event,projectId,stepId){
+    var items=event.clipboardData?event.clipboardData.items:[];
+    for(var i=0;i<items.length;i++){
+      if(items[i].type.indexOf('image')>=0){
+        event.preventDefault();
+        var file=items[i].getAsFile();
+        var reader=new FileReader();
+        reader.onload=function(e){
+          STEP_storeImage(e.target.result).then(function(imgId){
+            var arr=getProjects();var p=arr.find(function(x){return x.id===projectId});if(!p)return;
+            var s=p.steps.find(function(x){return x.id===stepId});if(!s)return;
+            if(!s.images)s.images=[];
+            s.images.push(imgId);
+            saveProjects(arr);renderProjectDetail(projectId);
+          });
+        };
+        reader.readAsDataURL(file);
+        break;
+      }
+    }
+  }
+
+  function handleStepDragOver(event,el){
+    event.preventDefault();event.stopPropagation();
+    if(el)el.style.background='var(--bg-light)';
+  }
+  function handleStepDragLeave(event,el){
+    event.preventDefault();event.stopPropagation();
+    if(el)el.style.background='';
+  }
+  function handleStepImageDrop(event,projectId,stepId,el){
+    event.preventDefault();event.stopPropagation();
+    if(el)el.style.background='';
+    var files=event.dataTransfer.files;
+    Array.from(files).forEach(function(file){
+      if(file.type.startsWith('image/')){
+        var reader=new FileReader();
+        reader.onload=function(e){
+          STEP_storeImage(e.target.result).then(function(imgId){
+            var arr=getProjects();var p=arr.find(function(x){return x.id===projectId});if(!p)return;
+            var s=p.steps.find(function(x){return x.id===stepId});if(!s)return;
+            if(!s.images)s.images=[];
+            s.images.push(imgId);
+            saveProjects(arr);renderProjectDetail(projectId);
+          });
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+  }
+
+  function deleteStepImage(projectId,stepId,imgIdx){
+    var arr=getProjects();var p=arr.find(function(x){return x.id===projectId});if(!p)return;
+    var s=p.steps.find(function(x){return x.id===stepId});if(!s)return;
+    if(!s.images||!s.images[imgIdx])return;
+    s.images.splice(imgIdx,1);
+    saveProjects(arr);renderProjectDetail(projectId);
+  }
+
+  /* ========== 图片拖拽排序 ========== */
+  var _dragImgIdx=null;
+  function handleImgDragStart(event,projectId,stepId,idx){
+    _dragImgIdx=idx;
+    event.dataTransfer.effectAllowed='move';
+  }
+  function handleImgDragOver(event){
+    event.preventDefault();event.dataTransfer.dropEffect='move';
+  }
+  function handleImgDrop(event,projectId,stepId,targetIdx){
+    event.preventDefault();
+    if(_dragImgIdx===null||_dragImgIdx===targetIdx)return;
+    var arr=getProjects();var p=arr.find(function(x){return x.id===projectId});if(!p)return;
+    var s=p.steps.find(function(x){return x.id===stepId});if(!s)return;
+    if(!s.images)return;
+    var temp=s.images[_dragImgIdx];
+    s.images.splice(_dragImgIdx,1);
+    s.images.splice(targetIdx,0,temp);
+    saveProjects(arr);renderProjectDetail(projectId);
+  }
+  function handleImgDragEnd(event){_dragImgIdx=null;}
+
+  /* ========== 附件上传（非图片） ========== */
+  function uploadStepAttachment(event,projectId,stepId){
+    var files=event.target.files;if(!files||files.length===0)return;
+    Array.from(files).forEach(function(file){
+      var reader=new FileReader();
+      reader.onload=function(e){
+        var arr=getProjects();var p=arr.find(function(x){return x.id===projectId});if(!p)return;
+        var s=p.steps.find(function(x){return x.id===stepId});if(!s)return;
+        if(!s.attachments)s.attachments=[];
+        s.attachments.push({name:file.name,type:file.type,size:file.size,data:e.target.result});
+        saveProjects(arr);renderProjectDetail(projectId);
+      };
+      reader.readAsDataURL(file);
+    });
+    event.target.value='';
+  }
+
+  function downloadStepAttachment(projectId,stepId,attIdx){
+    var arr=getProjects();var p=arr.find(function(x){return x.id===projectId});if(!p)return;
+    var s=p.steps.find(function(x){return x.id===stepId});if(!s)return;
+    if(!s.attachments||!s.attachments[attIdx])return;
+    var att=s.attachments[attIdx];
+    var a=document.createElement('a');
+    a.href=att.data;a.download=att.name;
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+  }
+
+  function deleteStepAttachment(projectId,stepId,attIdx){
+    var arr=getProjects();var p=arr.find(function(x){return x.id===projectId});if(!p)return;
+    var s=p.steps.find(function(x){return x.id===stepId});if(!s)return;
+    if(!s.attachments)return;
+    s.attachments.splice(attIdx,1);
+    saveProjects(arr);renderProjectDetail(projectId);
+  }
+
+  /* ========== 图片查看 ========== */
+  function openStepImageByRef(ref){
+    STEP_resolveImage(ref).then(function(dataUrl){
+      if(!dataUrl){toast('图片加载失败');return;}
+      openStepImage(dataUrl);
+    });
+  }
+
+  function openStepImage(imgData){
+    var overlay=document.createElement('div');
+    overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);z-index:99999;display:flex;align-items:center;justify-content:center;cursor:zoom-out';
+    overlay.onclick=function(){document.body.removeChild(overlay);};
+    var img=document.createElement('img');
+    img.src=imgData;
+    img.style.cssText='max-width:90%;max-height:90%;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,.5)';
+    overlay.appendChild(img);
+    document.body.appendChild(overlay);
+  }
+
+  /* ========== 保存步骤 ========== */
+  function saveStepManual(projectId,stepId){
+    var titleEl=document.getElementById('st_title_'+projectId+'_'+stepId);
+    var contentEl=document.getElementById('st_content_'+projectId+'_'+stepId);
+    var arr=getProjects();var p=arr.find(function(x){return x.id===projectId});if(!p)return;
+    var s=p.steps.find(function(x){return x.id===stepId});if(!s)return;
+    if(titleEl&&s.title!==titleEl.value)s.title=titleEl.value;
+    if(contentEl&&s.content!==contentEl.value)s.content=contentEl.value;
+    saveProjects(arr);
+    // 视觉反馈
+    var btns=document.querySelectorAll('[onclick="saveStepManual(\''+projectId+'\',\''+stepId+'\')"]');
+    btns.forEach(function(btn){
+      var origText=btn.textContent;var origBg=btn.style.background;
+      btn.textContent='✅ 已保存';btn.style.background='var(--success)';
+      setTimeout(function(){btn.textContent=origText;btn.style.background=origBg||'';},1200);
+    });
+    renderProjectDetail(projectId);
+  }
+
   function renderProjects(){
     renderProjectList();
   }
+
 
   /* ========== Part 4: 调用所有渲染函数 ========== */
   renderRiskModule();
@@ -13580,7 +13623,7 @@ if('serviceWorker' in navigator){
 </div>
 <script>
 (function(){
-  var APP_VERSION='2026-08-21.34';
+  var APP_VERSION='2026-08-21.36';
   var STORAGE_KEY='qms_update_ignored_version';
   function qmsParseVersion(v){
     var m=(v||'').match(/^(\d{4}-\d{2}-\d{2})\.(\d+)$/);
