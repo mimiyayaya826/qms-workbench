@@ -11367,9 +11367,13 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
   // 动态收集所有 qms_ 开头的键（含模块工作进展/交付物/笔记）
   // 【重要】排除 qms_sync_config（内含 GitHub Token）与密码类敏感键，
   // 避免 Token 被写入 data.json 触发 GitHub 密钥推送保护（409 Secret detected）。
+  // BUGFIX-CERT-RESET：这些键不参与云端同步（要么敏感配置、要么纯本地数据）。
+  // 拉取(pullData)时也必须跳过它们，否则云端 data.json 覆盖会清除本地 qms_certs，
+  // 导致证书模块 CERT_load 读到空数据后自动回填 7 条默认证书（"删除后自动变回初始"）。
+  const SYNC_SKIP_KEYS={'qms_sync_config':1,'qms_sync_last_time':1,'qms_site_lock_pwd':1,'qms_site_pwd':1,'qms_lock_pwd':1,'qms_sitelock':1,'qms_pwd_enc':1,'qms_pwds':1,'qms_certs':1,'qms_certs_ver':1,'qms_cloud_attach_cfg':1};
   function collectAllSyncData(){
     const data={};
-    const skip={'qms_sync_config':1,'qms_sync_last_time':1,'qms_site_lock_pwd':1,'qms_site_pwd':1,'qms_lock_pwd':1,'qms_sitelock':1,'qms_pwd_enc':1,'qms_pwds':1,'qms_certs':1,'qms_certs_ver':1,'qms_cloud_attach_cfg':1};
+    const skip=SYNC_SKIP_KEYS;
     for(let i=0;i<localStorage.length;i++){
       const k=localStorage.key(i);
       if(k&&k.startsWith('qms_')&&!skip[k]&&!/^qms_(pwd|lock|sitelock|secret|token|pass|enc)/i.test(k)){
@@ -11569,12 +11573,13 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
       const content=decodeURIComponent(escape(atob(info.content)));
       const data=JSON.parse(content);
       {/* BUG1 FIX：云端数据恢复 - 直接继续执行，不弹confirm(避免静默false导致恢复失效) */}{
-        // 清除现有qms_数据
+        // 清除现有qms_数据（BUGFIX-CERT-RESET：跳过 SYNC_SKIP_KEYS——证书/密码/锁定/附件配置
+        // 不在云端 data.json 中，清除后无法恢复；证书被清会触发 CERT_load 回填默认 7 条）
         const toDel=[];
-        for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith('qms_')&&k!=='qms_sync_config')toDel.push(k)}
+        for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith('qms_')&&!SYNC_SKIP_KEYS[k])toDel.push(k)}
         toDel.forEach(k=>localStorage.removeItem(k));
-        // 写入云端数据
-        Object.keys(data).forEach(k=>{if(k.startsWith('qms_'))localStorage.setItem(k,data[k])});
+        // 写入云端数据（同样跳过本地独有键，保持"不上云↔不覆盖"对称语义）
+        Object.keys(data).forEach(k=>{if(k.startsWith('qms_')&&!SYNC_SKIP_KEYS[k])localStorage.setItem(k,data[k])});
         localStorage.setItem('qms_sync_last_time',Date.now());
         status.textContent='拉取成功：'+new Date().toLocaleTimeString();
         status.style.color='var(--success)';
