@@ -10075,23 +10075,6 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
     el.style.height='auto';
     el.style.height=el.scrollHeight+'px';
   }
-  // 暴露实操记录模块所有函数到 window（修复 onclick 找不到函数的问题）
-  window.renderProjectList=renderProjectList;window.openProjectDetail=openProjectDetail;
-  window.addProject=addProject;window.deleteProject=deleteProject;window.renameProject=renameProject;
-  window.addStep=addStep;window.deleteStep=deleteStep;window.updateStep=updateStep;window.selectStep=selectStep;
-  window.saveStepManual=saveStepManual;window.moveStep=moveStep;
-  window.uploadStepImage=uploadStepImage;window.uploadStepAttachment=uploadStepAttachment;
-  window.deleteStepAttachment=deleteStepAttachment;window.downloadStepAttachment=downloadStepAttachment;
-  window.getProjects=getProjects;window.saveProjects=saveProjects;
-  window.getProjectTypes=getProjectTypes;window.saveProjectTypes=saveProjectTypes;
-  window.filterProjectsByType=filterProjectsByType;
-  window.openProjectTypeManager=openProjectTypeManager;window.closeProjectTypeManager=closeProjectTypeManager;
-  window.saveProjectEdit=saveProjectEdit;window.closeProjectEdit=closeProjectEdit;
-  window.toggleProjectEditType=toggleProjectEditType;
-  window.addProjectType=addProjectType;window.deleteProjectType=deleteProjectType;
-  window.renderStepDetail=renderStepDetail;window.autoResizeStepTextarea=autoResizeStepTextarea;
-  window.saveStepTextareaHeight=saveStepTextareaHeight;
-
   function saveStepTextareaHeight(projectId,stepId,el){
     if(!el)return;
     var field=el.getAttribute('data-field');
@@ -14379,7 +14362,7 @@ if('serviceWorker' in navigator){
 </div>
 <script>
 (function(){
-  var APP_VERSION='2026-08-21.56';
+  var APP_VERSION='2026-08-21.55';
   var STORAGE_KEY='qms_update_ignored_version';
   function qmsParseVersion(v){
     var m=(v||'').match(/^(\d{4}-\d{2}-\d{2})\.(\d+)$/);
