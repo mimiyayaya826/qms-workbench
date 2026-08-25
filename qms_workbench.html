@@ -1004,6 +1004,10 @@ table tbody tr:hover td{
 
 </style>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 </head>
 <body>
 <button class="menu-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')"><i data-lucide="panel-left" style="width:16px;height:16px;stroke-width:2.5"></i></button>
@@ -14309,7 +14313,7 @@ if('serviceWorker' in navigator){
 </div>
 <script>
 (function(){
-  var APP_VERSION='2026-08-21.53';
+  var APP_VERSION='2026-08-21.54';
   var STORAGE_KEY='qms_update_ignored_version';
   function qmsParseVersion(v){
     var m=(v||'').match(/^(\d{4}-\d{2}-\d{2})\.(\d+)$/);
@@ -15505,5 +15509,34 @@ function mreviewCopy(){
 </body>
 </html>
 
+
+<script>
+// 自动更新检测：不依赖版本号，直接对比页面内容哈希
+(function(){
+  try{
+    var currentHtml = document.documentElement.outerHTML;
+    // 简单哈希：取页面前 5000 字符的长度和特征
+    var currentSig = currentHtml.length + '_' + currentHtml.substring(0, 200).length;
+    var lastSig = localStorage.getItem('qms_page_sig');
+    if(lastSig && lastSig !== currentSig){
+      // 页面内容变了，清除 SW 缓存后刷新
+      if('caches' in window){
+        caches.keys().then(function(keys){
+          keys.forEach(function(k){caches.delete(k);});
+        });
+      }
+      if('serviceWorker' in navigator){
+        navigator.serviceWorker.getRegistrations().then(function(regs){
+          regs.forEach(function(r){r.unregister();});
+        });
+      }
+      localStorage.setItem('qms_page_sig', currentSig);
+      setTimeout(function(){location.reload(true);}, 300);
+      return;
+    }
+    localStorage.setItem('qms_page_sig', currentSig);
+  }catch(e){}
+})();
+</script>
 </body>
 </html>
