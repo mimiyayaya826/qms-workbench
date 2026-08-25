@@ -14302,14 +14302,14 @@ if('serviceWorker' in navigator){
     <span>🔄 检测到新版本 <b id="qmsUpdateVersion"></b>，点击刷新获取更新</span>
     <span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <button id="qmsUpdateRefresh" style="background:#fff;color:#f43f5e;border:none;border-radius:6px;padding:4px 12px;font-size:13px;cursor:pointer;font-weight:600">立即刷新</button>
-      <button id="qmsUpdateIgnore" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.5);border-radius:6px;padding:4px 12px;font-size:13px;cursor:pointer">忽略本次</button>
+      <button id="qmsUpdateIgnore" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.5);border-radius:6px;padding:4px 12px;font-size:13px;cursor:pointer">忽略本次</button><button onclick="forceUpdate()" style="margin-left:8px;padding:4px 12px;background:#fff;color:#f43f5e;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-weight:600">🔄 强制更新</button>
       <button id="qmsUpdateClose" title="关闭" style="background:transparent;color:#fff;border:none;font-size:18px;cursor:pointer;line-height:1;padding:0 4px">×</button>
     </span>
   </div>
 </div>
 <script>
 (function(){
-  var APP_VERSION='2026-08-21.52';
+  var APP_VERSION='2026-08-21.53';
   var STORAGE_KEY='qms_update_ignored_version';
   function qmsParseVersion(v){
     var m=(v||'').match(/^(\d{4}-\d{2}-\d{2})\.(\d+)$/);
@@ -14349,6 +14349,21 @@ if('serviceWorker' in navigator){
         }).catch(function(){});
     }catch(e){}
   }
+  function forceUpdate(){
+    // 只清除 Service Worker 缓存，不碰 localStorage/IndexedDB（记录都在那里）
+    if('caches' in window){
+      caches.keys().then(function(keys){
+        keys.forEach(function(k){caches.delete(k);});
+      });
+    }
+    if('serviceWorker' in navigator){
+      navigator.serviceWorker.getRegistrations().then(function(regs){
+        regs.forEach(function(r){r.unregister();});
+      });
+    }
+    setTimeout(function(){location.reload(true);},500);
+  }
+
   function qmsBind(){
     var refresh=document.getElementById('qmsUpdateRefresh');
     var ignore=document.getElementById('qmsUpdateIgnore');

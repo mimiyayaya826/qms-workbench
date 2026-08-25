@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-21.52",
+  "version": "2026-08-21.53",
   "note": "v36 实操记录模块全面重构：1)左右分栏布局（左侧步骤目录/右侧详情）；2)步骤详情上下排列（文字在上含操作要点+注意事项，图片/附件在下横向滚动）；3)支持PDF/Word/Excel等附件上传下载；4)图片支持拖拽排序；5)统一IndexedDB图片存储，删除重复函数；6)窄屏响应式自动变上下排列；7)旧数据自动迁移兼容。",
-  "notes": "v52 修复：实操记录项目详情位置问题。根因：1)有两个projectDetail div（一个在transition模块，一个多余在audit模块），导致结构混乱；2)projectDetail没有卡片样式，看起来像列表延续。修复：删除audit模块多余的projectDetail，给正确的加class=\"card\"卡片样式和margin-top:24px间距，现在详情是独立卡片区域在列表最下方。延续v51所有功能。"
+  "notes": "v53 新增：强制更新按钮（不删记录），解决桌面端缓存旧版本问题。点击后只清除Service Worker缓存和HTTP缓存，不碰localStorage/IndexedDB里的记录。延续v52所有功能。"
 }
