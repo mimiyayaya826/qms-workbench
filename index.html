@@ -4721,6 +4721,56 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
     <span>💡</span>
     <div><strong>使用提示：</strong>待办数据保存在浏览器本地，换浏览器或清缓存会丢失，重要事项建议同步到公司系统。点击复选框标记完成，点击 ✎ 编辑，点击 ✕ 删除。</div>
   </div>
+
+  <!-- 待办编辑弹窗 -->
+  <div id="todoEditModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:10000;align-items:center;justify-content:center">
+    <div style="background:var(--bg);border-radius:12px;padding:24px;width:90%;max-width:500px;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+      <h3 style="margin:0 0 16px 0;font-size:16px">编辑待办</h3>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div>
+          <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px">待办内容</label>
+          <input type="text" id="todoEditTitle" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box">
+        </div>
+        <div style="display:flex;gap:12px">
+          <div style="flex:1">
+            <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px">优先级</label>
+            <select id="todoEditPriority" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
+              <option value="high">高优先级</option>
+              <option value="medium">中优先级</option>
+              <option value="low">低优先级</option>
+            </select>
+          </div>
+          <div style="flex:1">
+            <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px">截止日期</label>
+            <input type="date" id="todoEditDeadline" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
+          </div>
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px">关联模块</label>
+          <select id="todoEditModule" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
+            <option value="">关联模块（可选）</option>
+            <option value="01 QMS">01 QMS 体系</option>
+            <option value="02 设计开发">02 设计开发</option>
+            <option value="03 风险管理">03 风险管理</option>
+            <option value="04 文档模板">04 文档模板</option>
+            <option value="05 内审管评">05 内审管评</option>
+            <option value="06 CAPA">06 CAPA</option>
+            <option value="07 变更控制">07 变更控制</option>
+            <option value="08 供应商">08 供应商</option>
+            <option value="09 过程确认">09 过程确认</option>
+            <option value="10 上市后">10 上市后</option>
+            <option value="11 国内GMP">11 国内GMP</option>
+            <option value="12 注册备案">12 注册备案</option>
+            <option value="实操记录">实操记录</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
+        <button onclick="closeTodoEdit()" style="padding:8px 16px;border:1px solid var(--border);background:#fff;border-radius:6px;cursor:pointer;font-size:13px">取消</button>
+        <button onclick="saveTodoEdit()" style="padding:8px 16px;background:var(--primary);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px">保存</button>
+      </div>
+    </div>
+  </div>
 </section>
 
 <section class="module" id="custom-portals">
@@ -4964,30 +5014,29 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
   }
   function editTodo(id){
     const t=todos.find(x=>x.id===id);if(!t)return;
-    const li=document.querySelector('li[data-todo-id="'+id+'"]');if(!li){renderTodos();return}
-    const title=li.querySelector('.todo-title');if(!title)return;
-    // 如果已有编辑框中，不再重复创建
-    if(li.dataset.editing==='1')return;
-    li.dataset.editing='1';
-    const orig=t.title||'';
-    const inp=document.createElement('input');
-    inp.type='text';inp.value=orig;
-    inp.style.cssText='padding:3px 8px;border:1.5px solid var(--primary);border-radius:6px;font-size:13px;font-family:inherit;background:#fff;color:var(--text);width:min(420px,70%);outline:none;box-shadow:0 0 0 3px rgba(14,165,233,.12)';
-    title.replaceWith(inp);inp.focus();inp.select();
-    let saved=false;
-    const finish=function(commit){
-      if(saved)return;saved=true;
-      if(commit){
-        const v=(inp.value||'').trim();
-        if(v){t.title=v;saveTodos();renderLiveStats()}
-      }
-      renderTodos();
-    };
-    inp.addEventListener('keydown',function(e){
-      if(e.key==='Enter'){e.preventDefault();finish(true)}
-      else if(e.key==='Escape'){e.preventDefault();finish(false)}
-    });
-    inp.addEventListener('blur',function(){finish(true)});
+    _editingTodoId=id;
+    document.getElementById('todoEditTitle').value=t.title||'';
+    document.getElementById('todoEditPriority').value=t.priority||'medium';
+    document.getElementById('todoEditModule').value=t.module||'';
+    document.getElementById('todoEditDeadline').value=t.deadline||'';
+    document.getElementById('todoEditModal').style.display='flex';
+  }
+  function closeTodoEdit(){
+    document.getElementById('todoEditModal').style.display='none';
+    _editingTodoId=null;
+  }
+  function saveTodoEdit(){
+    if(!_editingTodoId)return;
+    const t=todos.find(x=>x.id===_editingTodoId);if(!t){closeTodoEdit();return}
+    const title=document.getElementById('todoEditTitle').value.trim();
+    if(!title){toast('请输入待办内容');return}
+    t.title=title;
+    t.priority=document.getElementById('todoEditPriority').value;
+    t.module=document.getElementById('todoEditModule').value;
+    t.deadline=document.getElementById('todoEditDeadline').value;
+    saveTodos();renderTodos();renderLiveStats();
+    closeTodoEdit();
+    toast('✅ 已保存');
   }
   // 暴露到 window：确保 HTML 内联 onclick（全局执行上下文）一定能命中目标函数，
   // 防止因 function delTodo 与 inline handler 不在同一 Script 标签的词法作用域而静默失败
@@ -14313,7 +14362,7 @@ if('serviceWorker' in navigator){
 </div>
 <script>
 (function(){
-  var APP_VERSION='2026-08-21.54';
+  var APP_VERSION='2026-08-21.55';
   var STORAGE_KEY='qms_update_ignored_version';
   function qmsParseVersion(v){
     var m=(v||'').match(/^(\d{4}-\d{2}-\d{2})\.(\d+)$/);
