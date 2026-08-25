@@ -9731,6 +9731,9 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
 
   function renderProjectList(){
     var container=document.getElementById('projectList');if(!container)return;
+    // 防止 projectDetail 被误删：如果它在 projectList 里面（上次打开详情时移进来的），先移到外面
+    var _pd=document.getElementById('projectDetail');
+    if(_pd&&container.contains(_pd)){container.removeChild(_pd);if(container.parentNode)container.parentNode.insertBefore(_pd,container.nextSibling);}
     var projects=getProjects();
     var types=getProjectTypes();
     // 读取当前筛选条件
@@ -11733,7 +11736,7 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
       const k=localStorage.key(i);
       if(k&&k.startsWith('qms_')&&!skip[k]&&!/^qms_(pwd|lock|sitelock|secret|token|pass|enc)/i.test(k)){
         var _v=localStorage.getItem(k);
-        if(_v&&/(ghp_[A-Za-z0-9]{20,}|github_pat_|gho_|ghs_|AKIA[0-9A-Z]{16}|xox[bap]-|-----BEGIN[^-]|sk-[A-Za-z0-9]{20,})/.test(_v)){continue;}
+        if(_v&&/(ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|gho_[A-Za-z0-9]{20,}|ghu_[A-Za-z0-9]{20,}|ghs_[A-Za-z0-9]{20,}|ghr_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|ASIA[0-9A-Z]{16}|xox[baprs]-[A-Za-z0-9-]{10,}|-----BEGIN[^-]+PRIVATE KEY-----|sk-[A-Za-z0-9]{20,}|sk_live_[A-Za-z0-9]{20,}|sk_test_[A-Za-z0-9]{20,}|AIza[0-9A-Za-z\-_]{30,}|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+|gh[opsu]_[A-Za-z0-9]{20,})/.test(_v)){continue;}
         data[k]=_v;
       }
     }
@@ -11864,29 +11867,46 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
       const status=document.getElementById('syncStatus');
       if(btn){btn.classList.add('syncing');btn.textContent='⏳ 同步中'}
       try{
-        const data=collectAllSyncData();
-        const content=btoa(unescape(encodeURIComponent(JSON.stringify(data,null,2))));
-        // 先获取现有文件sha（如存在）
-        let sha=null;
-        const getUrl=`https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/data.json?ref=${cfg.branch}`;
-        try{
-          const getResp=await fetch(getUrl,{headers:{'Authorization':'token '+cfg.token,'Accept':'application/vnd.github.v3+json'}});
-          if(getResp.ok){const getInfo=await getResp.json();sha=getInfo.sha}
-        }catch(e){}
-        // 上传/更新文件
-        const putResp=await fetch(`https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/data.json`,{
-          method:'PUT',
-          headers:{'Authorization':'token '+cfg.token,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},
-          body:JSON.stringify({message:'QMS Workbench sync '+new Date().toLocaleString(),content,sha,branch:cfg.branch})
-        });
-        if(putResp.ok){
-          localStorage.setItem('qms_sync_last_time',Date.now());
-          if(status){status.textContent='同步成功：'+new Date().toLocaleTimeString();status.style.color='var(--success)'}
-          // 询问是否拉取
-          setTimeout(()=>{try{/* BUG1 FIX：云端上传成功 - 不弹confirm(会静默false)。用户如要拉取可手动点同步按钮。*/}catch(_){}},100);
-        }else{
-          const err=await putResp.json().catch(()=>({}));
-          if(putResp.status===409){toast('⚠️ 密钥保护拦截(409 Secret)：data.json 含敏感内容被 GitHub 拒绝。已自动排除密码类数据，请重试；仍失败可在仓库 Settings→Security→Push protection 关闭拦截','danger');throw new Error('409 Secret detected - 已排除敏感键，请重试');}
+        let data=collectAllSyncData();
+        let pushOk=false;let retryCount=0;
+        while(!pushOk && retryCount<2){
+          const content=btoa(unescape(encodeURIComponent(JSON.stringify(data,null,2))));
+          // 先获取现有文件sha（如存在）
+          let sha=null;
+          const getUrl=`https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/data.json?ref=${cfg.branch}`;
+          try{
+            const getResp=await fetch(getUrl,{headers:{'Authorization':'token '+cfg.token,'Accept':'application/vnd.github.v3+json'}});
+            if(getResp.ok){const getInfo=await getResp.json();sha=getInfo.sha}
+          }catch(e){}
+          // 上传/更新文件
+          const putResp=await fetch(`https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/data.json`,{
+            method:'PUT',
+            headers:{'Authorization':'token '+cfg.token,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},
+            body:JSON.stringify({message:'QMS Workbench sync '+new Date().toLocaleString(),content,sha,branch:cfg.branch})
+          });
+          if(putResp.ok){
+            pushOk=true;
+            localStorage.setItem('qms_sync_last_time',Date.now());
+            if(status){status.textContent='同步成功：'+new Date().toLocaleTimeString();status.style.color='var(--success)'}
+            setTimeout(()=>{try{}catch(_){}},100);
+          }else{
+            const err=await putResp.json().catch(()=>({}));
+            if(putResp.status===409 && retryCount===0){
+              // 409 密钥拦截：自动进行更严格扫描，排除所有可疑键后重试
+              toast('⚠️ 检测到敏感内容，自动清理后重试...','warning');
+              const strictRe=/(ghp_|github_pat_|gho_|ghu_|ghs_|ghr_|AKIA|ASIA|xox[baprs]-|-----BEGIN|sk-|sk_live_|sk_test_|AIza|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.|gh[opsu]_)/;
+              const removedKeys=[];
+              for(const k of Object.keys(data)){
+                if(k.startsWith('__'))continue;
+                const v=String(data[k]||'');
+                if(strictRe.test(v)){delete data[k];removedKeys.push(k);}
+              }
+              retryCount++;
+              continue;
+            }else if(putResp.status===409){
+              toast('⚠️ 密钥保护拦截(409 Secret)：自动清理后仍被拒绝。可在仓库 Settings→Security→Push protection 关闭拦截，或手动检查数据','danger');
+              throw new Error('409 Secret detected - 自动清理后仍失败');
+            }
           else if(putResp.status===401){toast('❌ 401：Token 认证失败或无仓库 Contents 写权限。请检查：fine-grained Token 需在 Repository access 选 qms-workbench 仓库，并给 Contents 权限勾 Read and write','danger');throw new Error('HTTP 401 - Token 无 Contents 写权限');}
           else if(putResp.status===403){toast('❌ 403：Token 缺少 contents 写权限。fine-grained token 需勾选 Contents: Read and write','danger');throw new Error('HTTP 403 - 检查 Token 写权限');}
           else if(putResp.status===404){toast('❌ 404：仓库/分支配置有误，或 data.json 无法访问','danger');throw new Error('HTTP 404 - 检查仓库配置');}
@@ -14367,7 +14387,7 @@ if('serviceWorker' in navigator){
 </div>
 <script>
 (function(){
-  var APP_VERSION='2026-08-21.56';
+  var APP_VERSION='2026-08-21.58';
   var STORAGE_KEY='qms_update_ignored_version';
   function qmsParseVersion(v){
     var m=(v||'').match(/^(\d{4}-\d{2}-\d{2})\.(\d+)$/);
