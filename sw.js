@@ -1,5 +1,5 @@
 // Service Worker - 体系工程师工作台 PWA
-const CACHE_NAME = 'qms-workbench-v47';
+const CACHE_NAME = 'qms-workbench-v49';
 const CACHE_FILES = [
   './',
   './index.html',

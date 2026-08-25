@@ -4200,7 +4200,7 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
   </div>
 
   <div class="card">
-    <h3><i data-lucide="clipboard-list" style="width:16px;height:16px;color:var(--primary);stroke-width:2"></i>我的项目列表</h3>
+    <h3 onclick="document.getElementById('projectList').style.display=document.getElementById('projectList').style.display==='none'?'block':'none'" style="cursor:pointer;user-select:none"><i data-lucide="clipboard-list" style="width:16px;height:16px;color:var(--primary);stroke-width:2"></i>我的项目列表 <span id="projectListToggle" style="font-size:12px;color:var(--text-muted);font-weight:400">▼</span></h3>
     <div id="projectList"></div>
   </div>
 
@@ -9591,7 +9591,7 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
       var p=arr.find(function(x){return x.id===_editingProjectId});
       if(p){p.title=name;p.desc=desc;p.types=_editingProjectTypes.slice();}
     }else{
-      arr.push({id:'p'+Date.now(),title:name,desc:desc,status:'进行中',types:_editingProjectTypes.slice(),steps:[]});
+      arr.unshift({id:'p'+Date.now(),title:name,desc:desc,status:'进行中',types:_editingProjectTypes.slice(),steps:[]});
     }
     saveProjects(arr);
     closeProjectEditModal();
@@ -9699,6 +9699,7 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
       '<button onclick="openProjectTypeManager()" style="padding:5px 10px;border:1px dashed var(--primary);background:var(--primary-bg);color:var(--primary);border-radius:6px;font-size:12px;cursor:pointer">⚙️ 管理类型</button>'+
       '<span style="font-size:12px;color:var(--text-muted)">共 '+filteredProjects.length+' 个项目</span>'+
     '</div>';
+    html+='<div style="margin-bottom:12px"><button onclick="addProject()" style="padding:6px 16px;background:var(--primary);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500">➕ 新增项目</button></div>';
     if(filteredProjects.length===0){
       html+='<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:13px">'+(filterType?'该类型下暂无项目':'暂无项目，点击下方按钮创建')+'</div>';
     }else{
@@ -9735,7 +9736,7 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
         '</div>';
       });
     }
-    html+='<div style="margin-top:12px"><button onclick="addProject()" style="padding:6px 16px;background:var(--primary);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500">➕ 新增项目</button></div>';
+
     container.innerHTML=html;
   }
 
@@ -10201,15 +10202,20 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
   /* ========== 附件上传（非图片） ========== */
   function uploadStepAttachment(event,projectId,stepId){
     var files=event.target.files;if(!files||files.length===0)return;
+    var MAX_SIZE=2*1024*1024; // 2MB 限制（localStorage base64 存储，过大会超配额）
     Array.from(files).forEach(function(file){
+      if(file.size>MAX_SIZE){toast('⚠️ 文件 "'+file.name+'" 超过 2MB 限制，无法上传。建议压缩后再传，或存到云盘后粘贴链接。');return;}
       var reader=new FileReader();
       reader.onload=function(e){
         var arr=getProjects();var p=arr.find(function(x){return x.id===projectId});if(!p)return;
         var s=p.steps.find(function(x){return x.id===stepId});if(!s)return;
         if(!s.attachments)s.attachments=[];
         s.attachments.push({name:file.name,type:file.type,size:file.size,data:e.target.result});
-        saveProjects(arr);renderProjectDetail(projectId);
+        try{saveProjects(arr);}catch(err){toast('❌ 保存失败：存储空间不足，请删除一些旧附件后重试');s.attachments.pop();return;}
+        renderProjectDetail(projectId);
+        toast('✅ 附件已上传：'+file.name);
       };
+      reader.onerror=function(){toast('❌ 文件读取失败：'+file.name);};
       reader.readAsDataURL(file);
     });
     event.target.value='';
