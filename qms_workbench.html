@@ -9773,7 +9773,7 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
           });
           typeTags+='</div>';
         }
-        html+='<div class="agg-card" style="margin-bottom:10px" onclick="openProjectDetail(\''+p.id+'\')">'+
+        html+='<div class="agg-card" id="project-item-'+p.id+'" style="margin-bottom:10px" onclick="openProjectDetail(\''+p.id+'\')">'+
           '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'+
             '<div style="font-weight:600;font-size:14px;color:var(--text)">'+escHtml(p.title)+'</div>'+
             '<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:var(--bg-light);color:var(--text-muted)">'+doneCount+'/'+totalCount+' 步骤 · '+progress+'%</span>'+
@@ -9802,6 +9802,11 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
 
   function renderProjectDetail(id){
     var container=document.getElementById('projectDetail');if(!container)return;
+    // 把详情容器移动到点击的项目下面（而不是固定在栏目底部）
+    var projectItem=document.getElementById('project-item-'+id);
+    if(projectItem&&projectItem.parentNode){
+      projectItem.parentNode.insertBefore(container,projectItem.nextSibling);
+    }
     var projects=getProjects();
     var p=projects.find(function(x){return x.id===id});
     if(!p){container.style.display='none';return;}
@@ -14362,7 +14367,7 @@ if('serviceWorker' in navigator){
 </div>
 <script>
 (function(){
-  var APP_VERSION='2026-08-21.55';
+  var APP_VERSION='2026-08-21.56';
   var STORAGE_KEY='qms_update_ignored_version';
   function qmsParseVersion(v){
     var m=(v||'').match(/^(\d{4}-\d{2}-\d{2})\.(\d+)$/);
