@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-21.51",
+  "version": "2026-08-21.52",
   "note": "v36 实操记录模块全面重构：1)左右分栏布局（左侧步骤目录/右侧详情）；2)步骤详情上下排列（文字在上含操作要点+注意事项，图片/附件在下横向滚动）；3)支持PDF/Word/Excel等附件上传下载；4)图片支持拖拽排序；5)统一IndexedDB图片存储，删除重复函数；6)窄屏响应式自动变上下排列；7)旧数据自动迁移兼容。",
-  "notes": "v51 修复：版本更新提示一直弹出的bug。根因：APP_VERSION硬编码为36，version.json已到50，导致50>36一直弹提示，刷新后APP_VERSION仍为36所以反复弹。修复：APP_VERSION同步更新为51，与version.json一致。以后每次发版必须同步更新APP_VERSION。延续v50所有功能。"
+  "notes": "v52 修复：实操记录项目详情位置问题。根因：1)有两个projectDetail div（一个在transition模块，一个多余在audit模块），导致结构混乱；2)projectDetail没有卡片样式，看起来像列表延续。修复：删除audit模块多余的projectDetail，给正确的加class=\"card\"卡片样式和margin-top:24px间距，现在详情是独立卡片区域在列表最下方。延续v51所有功能。"
 }
