@@ -3492,6 +3492,7 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
       <div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">
         <button onclick="capaExportJson()" style="padding:7px 14px;border:1px solid #cbd5e1;background:#fff;color:#334155;border-radius:8px;cursor:pointer;font-size:12px">📤 JSON</button>
         <button onclick="capaExportCsv()" style="padding:7px 14px;border:1px solid #cbd5e1;background:#fff;color:#334155;border-radius:8px;cursor:pointer;font-size:12px">📤 CSV</button>
+        <button onclick="capaExportExcel()" style="padding:7px 14px;border:1px solid #0284c7;background:linear-gradient(135deg,#0284c7,#0ea5e9);color:#fff;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600">📊 导出Excel</button>
         <button onclick="capaOpenForm()" type="button" style="padding:7px 18px;background:linear-gradient(135deg,#0284c7,#0ea5e9);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:12px">➕ 新增 CAPA</button>
       </div>
     </div>
@@ -7972,9 +7973,11 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
           currentCapa={
             id:genId(),title:'',source:'内审',sourceRef:'',problemDesc:'',
             rootCause:'',causeMethod:'5Why',correction:'',correctiveAction:'',preventiveAction:'',
-            responsible:'',dueDate:today(),status:'待分析',priority:'中',
-            verificationMethod:'',verificationResult:'',
-            closedDate:'',syncToAuditLessons:false,
+            responsible:'',respDept:'',assistDept:'',proposedBy:'',occurDate:today(),
+            dueDate:today(),status:'待分析',priority:'中',
+            verificationMethod:'',verificationResult:'',verifier:'',verifyDate:'',
+            actualFinishDate:'',implementation:'',
+            closedDate:'',isClosed:'否',remark:'',syncToAuditLessons:false,
             createdAt:bjNowStr(),updatedAt:bjNowStr(),_fiveWhy:['','','','','']
           };mode='new';fiveWhy=['','','','',''];
         }
@@ -8097,6 +8100,8 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
         c.title=g('capa_f_title');c.source=g('capa_f_source');c.sourceRef=g('capa_f_sourceRef');
         c.problemDesc=g('capa_f_problemDesc');c.priority=g('capa_f_priority');
         c.responsible=g('capa_f_responsible');c.dueDate=g('capa_f_dueDate');
+        c.proposedBy=g('capa_f_proposedBy');c.occurDate=g('capa_f_occurDate');
+        c.respDept=g('capa_f_respDept');c.assistDept=g('capa_f_assistDept');
       }else if(currentStep===1){
         c.causeMethod=g('capa_f_causeMethod');
         // 收集 5Why
@@ -8111,9 +8116,11 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
       }else if(currentStep===2){
         c.correction=g('capa_f_correction');c.correctiveAction=g('capa_f_correctiveAction');c.preventiveAction=g('capa_f_preventiveAction')
       }else if(currentStep===3){
-        c.verificationMethod=g('capa_f_vm');c.verificationResult=g('capa_f_vr')
+        c.verificationMethod=g('capa_f_vm');c.verificationResult=g('capa_f_vr');
+        c.actualFinishDate=g('capa_f_actualFinishDate');c.implementation=g('capa_f_implementation');
+        c.verifier=g('capa_f_verifier');c.verifyDate=g('capa_f_verifyDate');
       }else if(currentStep===4){
-        c.closedConclusion=g('capa_f_cc');
+        c.closedConclusion=g('capa_f_cc');c.isClosed=g('capa_f_isClosed');c.remark=g('capa_f_remark');
         const cb=document.getElementById('capaSyncAudit');if(cb)c.syncToAuditLessons=cb.checked;
       }
       c.status=autoTransition(c);
@@ -8160,6 +8167,20 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
           <div><label style="display:block;font-size:12px;font-weight:700;color:#0c4a6e;margin-bottom:5px">当前状态（自动）</label>
             <div style="padding:8px 12px;border-radius:8px;background:linear-gradient(135deg,#f0f9ff,#fff);border:1px solid #bae6fd;font-size:13px;font-weight:700;color:${STATUS_CLR[c.status]||'#0369a1'}">${esc(c.status||'待分析')}</div>
           </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-top:14px">
+          <div><label style="display:block;font-size:12px;font-weight:700;color:#0c4a6e;margin-bottom:5px">提出部门/人</label>
+            <input id="capa_f_proposedBy" placeholder="如：质量部/张三" value="${esc(c.proposedBy||'')}" ${inpAttr}>
+          </div>
+          <div><label style="display:block;font-size:12px;font-weight:700;color:#0c4a6e;margin-bottom:5px">发生日期</label>
+            <input id="capa_f_occurDate" type="date" value="${esc(c.occurDate||'')}" ${ro?'readonly disabled style="background:#f8fafc;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;width:100%;color:#334155;box-sizing:border-box"':'style="padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;width:100%;color:#0f172a;box-sizing:border-box"'}>
+          </div>
+          <div><label style="display:block;font-size:12px;font-weight:700;color:#0c4a6e;margin-bottom:5px">责任部门</label>
+            <input id="capa_f_respDept" placeholder="如：质量部" value="${esc(c.respDept||'')}" ${inpAttr}>
+          </div>
+          <div><label style="display:block;font-size:12px;font-weight:700;color:#0c4a6e;margin-bottom:5px">协助部门</label>
+            <input id="capa_f_assistDept" placeholder="如：生产部/研发部" value="${esc(c.assistDept||'')}" ${inpAttr}>
+          </div>
         </div>`
       }else if(currentStep===1){// 原因分析
         const manualRoot=c.rootCause&&(!fiveWhy.some(x=>x&&x.trim())||!c.rootCause.startsWith('为什么1：'))?c.rootCause:'';
@@ -8193,7 +8214,18 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
           </label><textarea id="capa_f_preventiveAction" placeholder="横向展开（Lesson Learned）。如：其他产品同SOP复核、全员培训、体系文件升版、更新FMEA/控制计划等。" ${taAttr}>${esc(c.preventiveAction||'')}</textarea></div>
         </div>`
       }else if(currentStep===3){// 实施验证
-        box.innerHTML=`<div style="display:grid;grid-template-columns:1fr;gap:14px">
+        box.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+          <div><label style="display:block;font-size:12px;font-weight:700;color:#0c4a6e;margin-bottom:5px">实际完成日期</label>
+            <input id="capa_f_actualFinishDate" type="date" value="${esc(c.actualFinishDate||'')}" ${ro?'readonly disabled style="background:#f8fafc;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;width:100%;color:#334155;box-sizing:border-box"':'style="padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;width:100%;color:#0f172a;box-sizing:border-box"'}>
+          </div>
+          <div><label style="display:block;font-size:12px;font-weight:700;color:#0c4a6e;margin-bottom:5px">验证人</label>
+            <input id="capa_f_verifier" placeholder="如：李四" value="${esc(c.verifier||'')}" ${inpAttr}>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr;gap:14px">
+          <div><label style="display:block;font-size:12px;font-weight:700;color:#0c4a6e;margin-bottom:5px">
+            📋 实施情况（措施执行进展 & 交付物）
+          </label><textarea id="capa_f_implementation" placeholder="措施执行情况：已完成/进行中/未开始。交付物清单：SOP修订版/培训记录/测试报告等。" ${taAttr}>${esc(c.implementation||'')}</textarea></div>
           <div><label style="display:block;font-size:12px;font-weight:700;color:#0c4a6e;margin-bottom:5px">
             🧪 验证方式（如何客观证明措施有效）
           </label><textarea id="capa_f_vm" placeholder="如：连续3批次合格率≥99.8%/重新走一次审核未发现同类不符合/客户3个月内未再收到同类投诉/重新测试等。" ${taAttr}>${esc(c.verificationMethod||'')}</textarea></div>
@@ -8201,6 +8233,9 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
             ✅ 验证结果（客观证据 & 结论）
             <span style="font-weight:400;color:#64748b">（填写完成后，状态将自动流转为「待验证」）</span>
           </label><textarea id="capa_f_vr" placeholder="粘贴客观证据（数据/测试报告编号/照片编号/客户邮件等）。结论：验证通过 / 验证未通过需追加措施。" ${taAttr.replace('min-height:96px','min-height:180px')}>${esc(c.verificationResult||'')}</textarea></div>
+          <div><label style="display:block;font-size:12px;font-weight:700;color:#0c4a6e;margin-bottom:5px">验证日期</label>
+            <input id="capa_f_verifyDate" type="date" value="${esc(c.verifyDate||'')}" ${ro?'readonly disabled style="background:#f8fafc;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;width:100%;color:#334155;box-sizing:border-box"':'style="padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;width:100%;color:#0f172a;box-sizing:border-box"'}>
+          </div>
         </div>`
       }else if(currentStep===4){// 关闭审批
         const isClosed=c.status==='已关闭';
@@ -8215,6 +8250,17 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
         <div><label style="display:block;font-size:12px;font-weight:700;color:#0c4a6e;margin-bottom:5px">
           📝 关闭结论 / 审批意见 <span style="color:#64748b;font-weight:400">（CAPA 有效性最终结论 · 后续跟踪要求）</span>
         </label><textarea id="capa_f_cc" placeholder="综合结论：该CAPA措施验证有效，不符合项根因已消除，预防措施横向展开到位，同意关闭。后续跟踪：建议 3 个月后再做一次管理评审复核。" ${taAttr.replace('min-height:96px','min-height:200px')}>${esc(c.closedConclusion||'')}</textarea></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px">
+          <div><label style="display:block;font-size:12px;font-weight:700;color:#0c4a6e;margin-bottom:5px">是否关闭</label>
+            <select id="capa_f_isClosed" ${ro?'disabled style="background:#f8fafc;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;width:100%;color:#334155;box-sizing:border-box"':'style="padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;width:100%;color:#0f172a;box-sizing:border-box"'}>
+              <option value="否" ${c.isClosed!=='是'?'selected':''}>否（进行中）</option>
+              <option value="是" ${c.isClosed==='是'?'selected':''}>是（已关闭）</option>
+            </select>
+          </div>
+          <div><label style="display:block;font-size:12px;font-weight:700;color:#0c4a6e;margin-bottom:5px">备注</label>
+            <input id="capa_f_remark" placeholder="其他补充说明" value="${esc(c.remark||'')}" ${inpAttr}>
+          </div>
+        </div>
         ${isClosed?`<div style="margin-top:14px;padding:12px 16px;border-radius:12px;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1px solid #86efac">
           <div style="font-size:12px;color:#14532d"><strong style="font-size:13px">✓ 本 CAPA 已关闭</strong> · ${c.closedDate||''} · ${esc(c.closedBy||'')}</div>
         </div>`:''}`
@@ -8358,6 +8404,38 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
       }).join(',')).join('\n');
       downloadFile('CAPA_全部_'+today()+'.csv',csv,'text/csv;charset=utf-8');
       logO('导出CSV','全部',arr.length+' 条')
+    }
+    // ===== 一键导出 Excel（格式与CAPA台账模板一致）=====
+    capaExportExcel=function(){
+      try{
+        const arr=getCapas();
+        const header=['序号','CAPA 编号','提出部门/人','问题来源','问题描述','发生日期','责任部门','责任人','协助部门','根本原因分析方法','纠正预防措施','计划完成日期','实际完成日期','实施情况','验证结果','验证人','验证日期','是否关闭','关闭日期','备注'];
+        const rows=arr.map((c,i)=>{
+          // 合并纠正+纠正措施+预防措施
+          const measures=[c.correction,c.correctiveAction,c.preventiveAction].filter(x=>x&&x.trim()).join('\n');
+          // 是否关闭：从isClosed字段或status判断
+          const isClosed=(c.isClosed==='是'||c.status==='已关闭')?'是':'否';
+          return [
+            i+1, c.id||'', c.proposedBy||'', c.source||'', c.problemDesc||'',
+            c.occurDate||'', c.respDept||'', c.responsible||'', c.assistDept||'',
+            c.causeMethod||'', measures, c.dueDate||'', c.actualFinishDate||'',
+            c.implementation||'', c.verificationResult||'', c.verifier||'', c.verifyDate||'',
+            isClosed, c.closedDate||'', c.remark||''
+          ];
+        });
+        const wsData=[header,...rows];
+        const ws=XLSX.utils.aoa_to_sheet(wsData);
+        // 设置列宽
+        ws['!cols']=[
+          {wch:6},{wch:16},{wch:14},{wch:10},{wch:30},{wch:12},{wch:12},{wch:10},{wch:12},
+          {wch:16},{wch:30},{wch:12},{wch:12},{wch:20},{wch:25},{wch:10},{wch:12},{wch:8},{wch:12},{wch:20}
+        ];
+        const wb=XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb,ws,'CAPA台账');
+        XLSX.writeFile(wb,'CAPA台账_'+today()+'.xlsx');
+        logO('导出Excel','全部',arr.length+' 条');
+        toast('✅ 已导出 '+arr.length+' 条 CAPA 记录');
+      }catch(e){toast('导出Excel失败：'+(e&&e.message||e));console.error(e)}
     };
     window.capaExportMd=function(id){
       const c=findById(id);if(!c)return;
@@ -14367,7 +14445,7 @@ if('serviceWorker' in navigator){
 </div>
 <script>
 (function(){
-  var APP_VERSION='2026-08-21.56';
+  var APP_VERSION='2026-08-21.57';
   var STORAGE_KEY='qms_update_ignored_version';
   function qmsParseVersion(v){
     var m=(v||'').match(/^(\d{4}-\d{2}-\d{2})\.(\d+)$/);
