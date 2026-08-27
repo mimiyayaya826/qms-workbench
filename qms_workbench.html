@@ -11932,22 +11932,6 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
       toast('✅ 连接正常！Token 有效，仓库 '+owner+'/'+repo+(rr.private?'（私有）':'（公开）')+' 可访问，可以保存并同步了','success');
     }catch(e){toast('❌ 测试失败：'+(e&&e.message||e),'danger')}
   };
-  // ===== XOR 混淆工具（彻底避免 GitHub secret scanning 409）=====
-  function _xorObfuscate(str){
-    const key=0x5A;
-    let result='__XOR__';
-    for(let i=0;i<str.length;i++){result+=String.fromCharCode(str.charCodeAt(i)^key)}
-    return btoa(unescape(encodeURIComponent(result)));
-  }
-  function _xorDeobfuscate(b64){
-    const raw=decodeURIComponent(escape(atob(b64)));
-    if(!raw.startsWith('__XOR__'))return null; // 不是XOR格式，返回null让调用者处理旧格式
-    const key=0x5A;
-    let result='';
-    for(let i=7;i<raw.length;i++){result+=String.fromCharCode(raw.charCodeAt(i)^key)}
-    return result;
-  }
-
   async function syncData(){
     // BUG8 FIX：最外层try/catch兜底，确保按钮无论如何都有响应
     // （元素不存在、配置出错、或其他意外时都弹出配置弹窗）
@@ -11959,7 +11943,7 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
       if(btn){btn.classList.add('syncing');btn.textContent='⏳ 同步中'}
       try{
         const data=collectAllSyncData();
-        const content=_xorObfuscate(JSON.stringify(data,null,2)); // XOR混淆后base64，避免GitHub secret scanning 409
+        const content=btoa(unescape(encodeURIComponent(JSON.stringify(data,null,2))));
         // 先获取现有文件sha（如存在）
         let sha=null;
         const getUrl=`https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/data.json?ref=${cfg.branch}`;
@@ -12019,15 +12003,7 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
       });
       if(!resp.ok)throw new Error('文件不存在或无权限');
       const info=await resp.json();
-      const raw=atob(info.content);
-      let content;
-      // 检测是否是 XOR 混淆格式（新格式）
-      if(raw.startsWith('__XOR__')){
-        content=_xorDeobfuscate(info.content);
-      }else{
-        // 旧格式：明文 base64
-        content=decodeURIComponent(escape(raw));
-      }
+      const content=decodeURIComponent(escape(atob(info.content)));
       const data=JSON.parse(content);
       {/* BUG1 FIX：云端数据恢复 - 直接继续执行，不弹confirm(避免静默false导致恢复失效) */}{
         // 清除现有qms_数据（BUGFIX-CERT-RESET：跳过 SYNC_SKIP_KEYS——证书/密码/锁定/附件配置
@@ -14469,7 +14445,7 @@ if('serviceWorker' in navigator){
 </div>
 <script>
 (function(){
-  var APP_VERSION='2026-08-21.58';
+  var APP_VERSION='2026-08-21.57';
   var STORAGE_KEY='qms_update_ignored_version';
   function qmsParseVersion(v){
     var m=(v||'').match(/^(\d{4}-\d{2}-\d{2})\.(\d+)$/);
