@@ -11831,16 +11831,17 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
       const cfg=getSyncConfig();
       const status=document.getElementById('syncStatus');
       if(!status)return;
-      const last=localStorage.getItem('qms_sync_last_time');
+      const last=parseInt(localStorage.getItem('qms_sync_last_time')||'0');
+      const ver='v'+(APP_VERSION||'').split('.').pop();
       if(!cfg){
-        status.textContent='未配置';
+        status.textContent='未配置 ('+ver+')';
         status.title='点击同步按钮配置GitHub仓库';
-      }else if(last){
-        status.textContent='上次同步：'+new Date(last).toLocaleString();
-        status.title='仓库：'+cfg.owner+'/'+cfg.repo;
+      }else if(last&&!isNaN(last)&&last>0){
+        status.textContent='上次同步：'+new Date(last).toLocaleString()+' ('+ver+')';
+        status.title='仓库：'+cfg.owner+'/'+cfg.repo+' | 版本：'+APP_VERSION;
       }else{
-        status.textContent='已配置，未同步';
-        status.title='仓库：'+cfg.owner+'/'+cfg.repo;
+        status.textContent='已配置，未同步 ('+ver+')';
+        status.title='仓库：'+cfg.owner+'/'+cfg.repo+' | 版本：'+APP_VERSION;
       }
     }catch(e){}
   }
@@ -14511,7 +14512,7 @@ if('serviceWorker' in navigator){
 </div>
 <script>
 (function(){
-  var APP_VERSION='2026-08-21.61';
+  var APP_VERSION='2026-08-21.62';
   var STORAGE_KEY='qms_update_ignored_version';
   function qmsParseVersion(v){
     var m=(v||'').match(/^(\d{4}-\d{2}-\d{2})\.(\d+)$/);
