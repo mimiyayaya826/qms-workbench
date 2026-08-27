@@ -11767,7 +11767,12 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
     try{
       const cfg=getSyncConfig();if(!cfg||!cfg.owner||!cfg.repo||!cfg.token)return;
       try{clearInterval(window.__autoSyncTimer)}catch(e){}
-      if(cfg.autoPull){setTimeout(function(){try{pullData(true)}catch(e){}},5000)}
+      // 自动拉取：但如果上次拉取是刚完成的（<10秒），跳过防止 reload 死循环
+      const skipPull=parseInt(localStorage.getItem('qms_sync_skip_pull')||'0',10);
+      localStorage.removeItem('qms_sync_skip_pull');
+      if(cfg.autoPull&&(!skipPull||Date.now()-skipPull>10000)){
+        setTimeout(function(){try{pullData(true)}catch(e){}},5000)
+      }
       if(cfg.autoPush&&parseInt(cfg.autoMinutes||15)>=5){
         window.__autoSyncTimer=setInterval(function(){try{syncData()}catch(e){}},Math.max(parseInt(cfg.autoMinutes)||15,5)*60000);
       }
@@ -11876,6 +11881,8 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
         status.textContent='拉取成功：'+new Date().toLocaleTimeString();
         status.style.color='var(--success)';
         if(!silent)toast('✅ 数据已恢复！页面将刷新。');
+        // 标记：刷新后跳过本次自动拉取，防止死循环
+        localStorage.setItem('qms_sync_skip_pull',String(Date.now()));
         location.reload();
       }
     }catch(e){
