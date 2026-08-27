@@ -11939,7 +11939,7 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
   async function _gzipToBase64(str){
     const enc=new TextEncoder();const data=enc.encode(str);
     const cs=new CompressionStream('gzip');
-    const w=cs.writable.getWriter();w.write(data);w.close();
+    const w=cs.writable.getWriter();await w.write(data);w.close();
     const r=cs.readable.getReader();const chunks=[];let total=0;
     while(true){const {done,value}=await r.read();if(done)break;chunks.push(value);total+=value.length}
     const combined=new Uint8Array(total);let off=0;
@@ -11951,7 +11951,7 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
     const bin=atob(b64);const data=new Uint8Array(bin.length);
     for(let i=0;i<bin.length;i++)data[i]=bin.charCodeAt(i);
     const ds=new DecompressionStream('gzip');
-    const w=ds.writable.getWriter();w.write(data);w.close();
+    const w=ds.writable.getWriter();await w.write(data);w.close();
     const r=ds.readable.getReader();const chunks=[];let total=0;
     while(true){const {done,value}=await r.read();if(done)break;chunks.push(value);total+=value.length}
     const combined=new Uint8Array(total);let off=0;
@@ -12054,23 +12054,22 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
       if(!resp.ok)throw new Error('文件不存在或无权限');
       const info=await resp.json();
       let content;
+      // 先检测数据格式（gzip 魔数 1f 8b / XOR 标记 / 旧格式 JSON）
+      let _raw='';
+      try{_raw=atob(info.content)}catch(e){throw new Error('云端 data.json 不是有效的 base64 数据')}
+      const _isGzip=_raw.length>=2&&_raw.charCodeAt(0)===0x1f&&_raw.charCodeAt(1)===0x8b;
+      const _isXor=_raw.startsWith('__XOR__');
       try{
-        // 尝试 gzip 格式
-        if(_supportsGzip)content=await _base64ToGunzip(info.content);
-        else throw new Error('gzip not supported');
-      }catch(e){
-        try{
-          // 尝试 XOR 格式（以 XOR 标记开头）
-          const raw=atob(info.content);
-          if(raw.startsWith('__XOR__')){
-            content=_base64ToXor(info.content);
-          }else{
-            // 旧格式：直接 base64 解码的 JSON
-            content=decodeURIComponent(escape(atob(info.content)));
-          }
-        }catch(e2){throw new Error('数据格式无法解析（文件可能为空或损坏）')}
-      }
-      if(!content||!content.trim())throw new Error('云端 data.json 为空');
+        if(_isGzip&&_supportsGzip){
+          content=await _base64ToGunzip(info.content);
+        }else if(_isXor){
+          content=_base64ToXor(info.content);
+        }else{
+          // 旧格式：直接 base64 解码的 JSON
+          content=decodeURIComponent(escape(_raw));
+        }
+      }catch(e){throw new Error('数据解析失败（'+(_isGzip?'gzip':_isXor?'xor':'旧格式')+'格式）：'+(e.message||e))}
+      if(!content||!content.trim())throw new Error('云端 data.json 解析后为空（文件可能损坏）');
       const data=JSON.parse(content);
       {/* BUG1 FIX：云端数据恢复 - 直接继续执行，不弹confirm(避免静默false导致恢复失效) */}{
         // 清除现有qms_数据（BUGFIX-CERT-RESET：跳过 SYNC_SKIP_KEYS——证书/密码/锁定/附件配置
@@ -14528,7 +14527,7 @@ if('serviceWorker' in navigator){
 </div>
 <script>
 (function(){
-  var APP_VERSION='2026-08-21.64';
+  var APP_VERSION='2026-08-21.65';
   var STORAGE_KEY='qms_update_ignored_version';
   function qmsParseVersion(v){
     var m=(v||'').match(/^(\d{4}-\d{2}-\d{2})\.(\d+)$/);
