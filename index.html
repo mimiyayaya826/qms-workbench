@@ -14496,23 +14496,22 @@ renderPwds();
 // 注册 Service Worker（PWA离线能力）+ 自动检查更新
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js').then(reg => {
-    // 检查是否有新版本
+    // 检查是否有新版本（安装完成后提示，不自动刷新——避免无限刷新循环）
     reg.addEventListener('updatefound', () => {
       const newSW = reg.installing;
       newSW.addEventListener('statechange', () => {
         if(newSW.state === 'installed' && navigator.serviceWorker.controller){
-          // 有新版本，自动刷新
-          window.location.reload();
+          // 有新版本，显示提示横幅让用户手动刷新
+          const banner = document.createElement('div');
+          banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:linear-gradient(90deg,#f43f5e,#f59e0b);color:#fff;padding:10px 16px;font-size:14px;display:flex;justify-content:space-between;align-items:center';
+          banner.innerHTML = '<span>🔄 发现新版本，点击<a href="#" style="color:#fff;text-decoration:underline;margin-left:6px" onclick="location.reload();return false">刷新页面</a>更新</span><button onclick="this.parentElement.remove()" style="background:none;border:none;color:#fff;cursor:pointer;font-size:18px">×</button>';
+          document.body.appendChild(banner);
         }
       });
     });
-    // 每 30 秒检查一次更新
-    setInterval(() => reg.update().catch(()=>{}), 30000);
+    // 每 5 分钟检查一次更新（不要太频繁）
+    setInterval(() => reg.update().catch(()=>{}), 300000);
   }).catch(()=>{});
-  // Service Worker 变更时自动刷新
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if(!window.__swRefreshing){window.__swRefreshing=true;window.location.reload();}
-  });
 }
 </script>
 
@@ -14529,7 +14528,7 @@ if('serviceWorker' in navigator){
 </div>
 <script>
 (function(){
-  var APP_VERSION='2026-08-21.63';
+  var APP_VERSION='2026-08-21.64';
   var STORAGE_KEY='qms_update_ignored_version';
   function qmsParseVersion(v){
     var m=(v||'').match(/^(\d{4}-\d{2}-\d{2})\.(\d+)$/);

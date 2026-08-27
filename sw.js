@@ -1,6 +1,6 @@
 // Service Worker - 体系工程师工作台 PWA
 // v63: 彻底解决缓存问题——不缓存 index.html，确保新版本一定被加载
-const CACHE_NAME = 'qms-workbench-v63';
+const CACHE_NAME = 'qms-workbench-v64';
 // 只缓存静态资源，不缓存 index.html（确保每次都加载最新版）
 const CACHE_FILES = [
   './manifest.json',
