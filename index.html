@@ -8722,7 +8722,9 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
         try{
           if(merge){
             // merge 模式：如果当前本地已有，则保留本地；只补缺失
-            if(localStorage.getItem(k)===null){localStorage.setItem(k,snapshot[k]);n++}
+            var _cur=localStorage.getItem(k);
+            var _isEmpty=(_cur===null||_cur===''||_cur==='[]'||_cur==='{}'||_cur==='null'||_cur==='undefined');
+            if(_isEmpty){localStorage.setItem(k,snapshot[k]);n++;}
           }else{
             localStorage.setItem(k,snapshot[k]);n++;
           }
