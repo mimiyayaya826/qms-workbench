@@ -11933,6 +11933,8 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
     }catch(e){toast('❌ 测试失败：'+(e&&e.message||e),'danger')}
   };
   // ===== gzip 压缩/解压工具（彻底避免 GitHub secret scanning 409）=====
+  // 检测浏览器是否支持 CompressionStream
+  const _supportsGzip = (typeof CompressionStream !== 'undefined' && typeof DecompressionStream !== 'undefined');
   async function _gzipToBase64(str){
     const enc=new TextEncoder();const data=enc.encode(str);
     const cs=new CompressionStream('gzip');
@@ -11955,6 +11957,21 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
     for(const c of chunks){combined.set(c,off);off+=c.length}
     return new TextDecoder().decode(combined);
   }
+  // XOR 混淆（降级方案，不依赖 CompressionStream）
+  function _xorToBase64(str){
+    const key=0x5A;
+    let obfuscated='__XOR__';
+    for(let i=0;i<str.length;i++){obfuscated+=String.fromCharCode(str.charCodeAt(i)^key)}
+    return btoa(unescape(encodeURIComponent(obfuscated)));
+  }
+  function _base64ToXor(b64){
+    const raw=decodeURIComponent(escape(atob(b64)));
+    const key=0x5A;
+    let result='';
+    for(let i=7;i<raw.length;i++){result+=String.fromCharCode(raw.charCodeAt(i)^key)}
+    return result;
+  }
+
 
   async function syncData(){
     // BUG8 FIX：最外层try/catch兜底，确保按钮无论如何都有响应
@@ -11969,7 +11986,13 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
         const data=collectAllSyncData();
         // gzip 压缩后 base64：GitHub secret scanning 不会解压 gzip，彻底避免 409
         const _jsonStr=JSON.stringify(data,null,2);
-        const content=await _gzipToBase64(_jsonStr);
+        let content;
+        if(_supportsGzip){
+          content=await _gzipToBase64(_jsonStr);
+        }else{
+          // 降级：XOR 混淆后 base64（不依赖 CompressionStream，所有浏览器可用）
+          content=_xorToBase64(_jsonStr);
+        }
         // 先获取现有文件sha（如存在）
         let sha=null;
         const getUrl=`https://api.github.com/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}/contents/data.json?ref=${encodeURIComponent(cfg.branch)}`;
@@ -12031,12 +12054,20 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
       const info=await resp.json();
       let content;
       try{
-        // 新格式：gzip 压缩后 base64
-        content=await _base64ToGunzip(info.content);
+        // 尝试 gzip 格式
+        if(_supportsGzip)content=await _base64ToGunzip(info.content);
+        else throw new Error('gzip not supported');
       }catch(e){
-        // 旧格式：直接 base64 解码的 JSON
-        try{content=decodeURIComponent(escape(atob(info.content)))}
-        catch(e2){throw new Error('数据格式无法解析（文件可能为空或损坏）')}
+        try{
+          // 尝试 XOR 格式（以 XOR 标记开头）
+          const raw=atob(info.content);
+          if(raw.startsWith('__XOR__')){
+            content=_base64ToXor(info.content);
+          }else{
+            // 旧格式：直接 base64 解码的 JSON
+            content=decodeURIComponent(escape(atob(info.content)));
+          }
+        }catch(e2){throw new Error('数据格式无法解析（文件可能为空或损坏）')}
       }
       if(!content||!content.trim())throw new Error('云端 data.json 为空');
       const data=JSON.parse(content);
@@ -14480,7 +14511,7 @@ if('serviceWorker' in navigator){
 </div>
 <script>
 (function(){
-  var APP_VERSION='2026-08-21.60';
+  var APP_VERSION='2026-08-21.61';
   var STORAGE_KEY='qms_update_ignored_version';
   function qmsParseVersion(v){
     var m=(v||'').match(/^(\d{4}-\d{2}-\d{2})\.(\d+)$/);
