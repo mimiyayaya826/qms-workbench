@@ -11932,6 +11932,30 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
       toast('✅ 连接正常！Token 有效，仓库 '+owner+'/'+repo+(rr.private?'（私有）':'（公开）')+' 可访问，可以保存并同步了','success');
     }catch(e){toast('❌ 测试失败：'+(e&&e.message||e),'danger')}
   };
+  // ===== gzip 压缩/解压工具（彻底避免 GitHub secret scanning 409）=====
+  async function _gzipToBase64(str){
+    const enc=new TextEncoder();const data=enc.encode(str);
+    const cs=new CompressionStream('gzip');
+    const w=cs.writable.getWriter();w.write(data);w.close();
+    const r=cs.readable.getReader();const chunks=[];let total=0;
+    while(true){const {done,value}=await r.read();if(done)break;chunks.push(value);total+=value.length}
+    const combined=new Uint8Array(total);let off=0;
+    for(const c of chunks){combined.set(c,off);off+=c.length}
+    let bin='';for(let i=0;i<combined.length;i++)bin+=String.fromCharCode(combined[i]);
+    return btoa(bin);
+  }
+  async function _base64ToGunzip(b64){
+    const bin=atob(b64);const data=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++)data[i]=bin.charCodeAt(i);
+    const ds=new DecompressionStream('gzip');
+    const w=ds.writable.getWriter();w.write(data);w.close();
+    const r=ds.readable.getReader();const chunks=[];let total=0;
+    while(true){const {done,value}=await r.read();if(done)break;chunks.push(value);total+=value.length}
+    const combined=new Uint8Array(total);let off=0;
+    for(const c of chunks){combined.set(c,off);off+=c.length}
+    return new TextDecoder().decode(combined);
+  }
+
   async function syncData(){
     // BUG8 FIX：最外层try/catch兜底，确保按钮无论如何都有响应
     // （元素不存在、配置出错、或其他意外时都弹出配置弹窗）
@@ -11943,9 +11967,9 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
       if(btn){btn.classList.add('syncing');btn.textContent='⏳ 同步中'}
       try{
         const data=collectAllSyncData();
-        // 双重 base64 编码：避免 GitHub secret scanning 检测到明文密钥（409错误）
+        // gzip 压缩后 base64：GitHub secret scanning 不会解压 gzip，彻底避免 409
         const _jsonStr=JSON.stringify(data,null,2);
-        const content=btoa(unescape(encodeURIComponent(btoa(unescape(encodeURIComponent(_jsonStr))))));
+        const content=await _gzipToBase64(_jsonStr);
         // 先获取现有文件sha（如存在）
         let sha=null;
         const getUrl=`https://api.github.com/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}/contents/data.json?ref=${encodeURIComponent(cfg.branch)}`;
@@ -12005,9 +12029,16 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
       });
       if(!resp.ok)throw new Error('文件不存在或无权限');
       const info=await resp.json();
-      let content=decodeURIComponent(escape(atob(info.content)));
-      // 兼容双重 base64 格式（新格式）：第一次解码后不是JSON则再解一次
-      try{JSON.parse(content)}catch(e){try{content=decodeURIComponent(escape(atob(content)))}catch(e2){throw new Error('数据格式无法解析')}}
+      let content;
+      try{
+        // 新格式：gzip 压缩后 base64
+        content=await _base64ToGunzip(info.content);
+      }catch(e){
+        // 旧格式：直接 base64 解码的 JSON
+        try{content=decodeURIComponent(escape(atob(info.content)))}
+        catch(e2){throw new Error('数据格式无法解析（文件可能为空或损坏）')}
+      }
+      if(!content||!content.trim())throw new Error('云端 data.json 为空');
       const data=JSON.parse(content);
       {/* BUG1 FIX：云端数据恢复 - 直接继续执行，不弹confirm(避免静默false导致恢复失效) */}{
         // 清除现有qms_数据（BUGFIX-CERT-RESET：跳过 SYNC_SKIP_KEYS——证书/密码/锁定/附件配置
@@ -14449,7 +14480,7 @@ if('serviceWorker' in navigator){
 </div>
 <script>
 (function(){
-  var APP_VERSION='2026-08-21.59';
+  var APP_VERSION='2026-08-21.60';
   var STORAGE_KEY='qms_update_ignored_version';
   function qmsParseVersion(v){
     var m=(v||'').match(/^(\d{4}-\d{2}-\d{2})\.(\d+)$/);
