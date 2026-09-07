@@ -11837,27 +11837,40 @@ function uploadStepImage(event,projectId,stepId){
   // BUGFIX-CERT-RESET：这些键不参与云端同步（要么敏感配置、要么纯本地数据）。
   // 拉取(pullData)时也必须跳过它们，否则云端 data.json 覆盖会清除本地 qms_certs，
   // 导致证书模块 CERT_load 读到空数据后自动回填 7 条默认证书（"删除后自动变回初始"）。
-  const SYNC_SKIP_KEYS={'qms_sync_config':1,'qms_sync_last_time':1,'qms_site_lock_pwd':1,'qms_site_pwd':1,'qms_lock_pwd':1,'qms_sitelock':1,'qms_pwd_enc':1,'qms_pwds':1,'qms_certs':1,'qms_certs_ver':1,'qms_cloud_attach_cfg':1};
-  function collectAllSyncData(){
-    const data={};
+  // 云同步 v3：跳过键 = 本机独有（不上云、不被云端覆盖）。含拉取前安全快照键。
+  const SYNC_SKIP_KEYS={'qms_sync_config':1,'qms_sync_last_time':1,'qms_sync_skip_pull':1,'qms_site_lock_pwd':1,'qms_site_pwd':1,'qms_lock_pwd':1,'qms_sitelock':1,'qms_pwd_enc':1,'qms_pwds':1,'qms_certs':1,'qms_certs_ver':1,'qms_cloud_attach_cfg':1,'qms_pre_pull_snapshot':1};
+  // 云同步数据 = localStorage(文本) + IndexedDB(附件)，与本地备份同构，确保 PC↔iPad 100% 数据一致
+  async function collectAllSyncData(){
+    const localSnap={};
     const skip=SYNC_SKIP_KEYS;
     for(let i=0;i<localStorage.length;i++){
       const k=localStorage.key(i);
-      if(k&&k.startsWith('qms_')&&!skip[k]&&!/^qms_(pwd|lock|sitelock|secret|token|pass|enc)/i.test(k)){
-        var _v=localStorage.getItem(k);
-        if(_v&&/(ghp_[A-Za-z0-9]{20,}|github_pat_|gho_|ghs_|AKIA[0-9A-Z]{16}|xox[bap]-|-----BEGIN[^-]|sk-[A-Za-z0-9]{20,})/.test(_v)){continue;}
-        data[k]=_v;
-      }
+      if(!k||!k.startsWith('qms_')||skip[k]||/^qms_(pwd|lock|sitelock|secret|token|pass|enc)/i.test(k))continue;
+      const _v=localStorage.getItem(k);
+      if(_v&&/(ghp_[A-Za-z0-9]{20,}|github_pat_|gho_|ghs_|AKIA[0-9A-Z]{16}|xox[bap]-|-----BEGIN[^-]|sk-[A-Za-z0-9]{20,})/.test(_v))continue;
+      localSnap[k]=_v;
     }
-    data.__syncTime=new Date().toISOString();
-    data.__device=navigator.userAgent.substring(0,50);
-    return data;
+    let idbSnap={};
+    try{await GIDB_open();idbSnap=await StorageRegistry.snapshotIdb()}catch(e){idbSnap={}}
+    return {
+      format:'qms_cloud_v3',
+      localStorage:localSnap,
+      indexedDB:idbSnap,
+      meta:{syncTime:new Date().toISOString(),device:navigator.userAgent.substring(0,50)}
+    };
   }
   function getSyncConfig(){
-    try{return JSON.parse(localStorage.getItem('qms_sync_config')||'null')}catch(e){return null}
+    try{
+      const cfg=JSON.parse(localStorage.getItem('qms_sync_config')||'null');
+      if(cfg&&cfg.token)cfg.token=_decPwd(cfg.token); // 透明解密（兼容旧明文）
+      return cfg;
+    }catch(e){return null}
   }
   function setSyncConfig(cfg){
-    localStorage.setItem('qms_sync_config',JSON.stringify(cfg));
+    // Token 用 penc1:: XOR+Base64 加密存储，避免 localStorage 明文泄露
+    const safe={...cfg};
+    if(safe.token)safe.token=_encPwd(safe.token);
+    localStorage.setItem('qms_sync_config',JSON.stringify(safe));
     updateSyncStatus();
   }
   function updateSyncStatus(){
@@ -11893,9 +11906,9 @@ function uploadStepImage(event,projectId,stepId){
       <input type="text" id="scRepo" value="${escHtml(cfg.repo)}" placeholder="如 qms-workbench">
       <label>分支名</label>
       <input type="text" id="scBranch" value="${escHtml(cfg.branch)}" placeholder="main">
-      <label>Personal Access Token</label>
+      <label>Personal Access Token <span style="color:#94a3b8;font-size:11px;font-weight:normal">（推送必填，公开仓库拉取可留空）</span></label>
       <input type="password" id="scToken" value="${escHtml(cfg.token)}" placeholder="ghp_xxxxxxxx（需repo权限）">
-      <div class="sc-tip">📝 <strong>获取Token：</strong>GitHub → Settings → Developer settings → Personal access tokens → Generate new token → 勾选 <code>repo</code> 权限。<br><br>⚠️ <strong>安全说明：</strong>Token 存在本地浏览器，仅用于调用GitHub API。建议仓库设为私有。首次同步会在仓库创建 data.json 文件。</div>
+      <div class="sc-tip">📝 <strong>获取Token：</strong>GitHub → Settings → Developer settings → Personal access tokens → Generate new token → 勾选 <code>repo</code> 权限。<br><br>🔒 <strong>安全说明：</strong>Token 以 <code>penc1::</code> XOR+Base64 加密保存在本机浏览器，不会明文存储，也不会上传到 data.json。公开仓库的 iPad/手机端只拉取数据时可<b>不填 Token</b>。</div>
       <div class="sc-tip">🤖 <strong>自动同步：</strong><br>
         <label style="display:flex;align-items:center;gap:6px;margin-top:6px"><input type="checkbox" id="scAutoPull" ${cfg.autoPull?'checked':''}> 打开页面时自动拉取云端数据</label>
         <label style="display:flex;align-items:center;gap:6px;margin-top:6px"><input type="checkbox" id="scAutoPush" ${cfg.autoPush?'checked':''}> 页面打开期间定时自动上传</label>
@@ -11923,11 +11936,11 @@ function uploadStepImage(event,projectId,stepId){
       autoPush:document.getElementById('scAutoPush')?document.getElementById('scAutoPush').checked:false,
       autoMinutes:parseInt((document.getElementById('scAutoMin')||{}).value||'15')||15
     };
-    if(!cfg.owner||!cfg.repo||!cfg.token){toast('请填写完整信息');return}
+    if(!cfg.owner||!cfg.repo){toast('请填写用户名和仓库名');return}
     setSyncConfig(cfg);
     closePreview();
     startAutoSync();
-    toast('✅ 配置已保存！'+(cfg.autoPull||cfg.autoPush?'已开启自动同步。':'点击"同步"上传数据。'));
+    toast('✅ 配置已保存！'+(cfg.token?'已可推送数据。':'仅可拉取公开仓库数据，如需推送请填写 Token。')+(cfg.autoPull||cfg.autoPush?' 已开启自动同步。':' 点击「同步」手动上传。'));
   }
   function clearSyncConfig(){
     {/* BUG1 FIX：清除同步配置 - 直接执行，不弹confirm */}{
@@ -11937,25 +11950,39 @@ function uploadStepImage(event,projectId,stepId){
       closePreview();
     }
   }
-  // ===== 自动同步：打开自动拉取 + 定时自动上传 =====
+  // 自动同步：auto-pull 不需 Token（公开仓库）；auto-push 需 Token。拉取后设 skip 标志防 reload 死循环。
   function startAutoSync(){
     try{
-      const cfg=getSyncConfig();if(!cfg||!cfg.owner||!cfg.repo||!cfg.token)return;
+      const cfg=getSyncConfig();if(!cfg||!cfg.owner||!cfg.repo)return;
       try{clearInterval(window.__autoSyncTimer)}catch(e){}
-      if(cfg.autoPull){setTimeout(function(){try{pullData(true)}catch(e){}},5000)}
-      if(cfg.autoPush&&parseInt(cfg.autoMinutes||15)>=5){
+      // 自动拉取：若上次拉取刚完成（<10秒）则跳过，防止 pull→reload→pull 死循环
+      const skipPull=parseInt(localStorage.getItem('qms_sync_skip_pull')||'0',10);
+      localStorage.removeItem('qms_sync_skip_pull');
+      if(cfg.autoPull&&(!skipPull||Date.now()-skipPull>10000)){
+        setTimeout(function(){try{pullData(true)}catch(e){}},5000);
+      }
+      if(cfg.token&&cfg.autoPush&&parseInt(cfg.autoMinutes||15)>=5){
         window.__autoSyncTimer=setInterval(function(){try{syncData()}catch(e){}},Math.max(parseInt(cfg.autoMinutes)||15,5)*60000);
       }
     }catch(e){}
   }
-  // ===== 测试连接：验证 Token 与仓库配置是否有效 =====
+  // 测试连接：支持无 Token（公开仓库仅测拉取）与有 Token（测推送权限）
   window.testSyncConnection=async function(){
     try{
       const owner=(document.getElementById('scOwner')||{}).value||'';
       const repo=(document.getElementById('scRepo')||{}).value||'';
       const token=(document.getElementById('scToken')||{}).value||'';
-      if(!owner||!repo||!token){toast('请先填写用户名/仓库名/Token');return}
+      if(!owner||!repo){toast('请先填写用户名和仓库名');return}
       toast('🔌 正在测试连接…','info');
+      if(!token){
+        // 无Token模式：只测试公开仓库是否可访问（拉取）
+        const r=await fetch('https://api.github.com/repos/'+owner+'/'+repo,{headers:{Accept:'application/vnd.github.v3+json'}});
+        if(!r.ok){toast('❌ 仓库访问失败(HTTP '+r.status+')\n私有仓库需要Token，公开仓库请检查用户名/仓库名','danger');return}
+        const rr=await r.json();
+        if(rr.private){toast('❌ 该仓库为私有，必须填写 Token 才能访问','danger');return}
+        toast('✅ 仓库 '+owner+'/'+repo+' 为公开仓库，可直接拉取数据。\n如需推送数据请填写 Token。','success');
+        return;
+      }
       const r1=await fetch('https://api.github.com/user',{headers:{'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json'}});
       if(!r1.ok){const j=await r1.json().catch(()=>({}));toast('❌ Token 无效：'+(j.message||'HTTP '+r1.status)+'\n请重新生成 Token 并检查权限(repo)','danger');return}
       const u=await r1.json();
@@ -11992,33 +12019,35 @@ function uploadStepImage(event,projectId,stepId){
       const status=document.getElementById('syncStatus');
       if(btn){btn.classList.add('syncing');btn.textContent='⏳ 同步中'}
       try{
-        const data=collectAllSyncData();
-        const content=_xorObfuscate(JSON.stringify(data,null,2)); // XOR混淆后base64，避免GitHub secret scanning 409
-        // 先获取现有文件sha（如存在）
-        let sha=null;
-        const getUrl=`https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/data.json?ref=${cfg.branch}`;
-        try{
-          const getResp=await fetch(getUrl,{headers:{'Authorization':'token '+cfg.token,'Accept':'application/vnd.github.v3+json'}});
-          if(getResp.ok){const getInfo=await getResp.json();sha=getInfo.sha}
-        }catch(e){}
-        // 上传/更新文件
-        const putResp=await fetch(`https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/data.json`,{
-          method:'PUT',
-          headers:{'Authorization':'token '+cfg.token,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},
-          body:JSON.stringify({message:'QMS Workbench sync '+new Date().toLocaleString(),content,sha,branch:cfg.branch})
-        });
-        if(putResp.ok){
+        if(!cfg.token){toast('❌ 推送数据需要 Token。请在同步配置中填写 GitHub Personal Access Token（repo 权限）。','danger');return}
+        const data=await collectAllSyncData();
+        const content=_xorObfuscate(JSON.stringify(data)); // XOR混淆后base64，避免GitHub secret scanning 409
+        const baseUrl=`https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/data.json`;
+        const hdr={'Authorization':'token '+cfg.token,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'};
+        // 409 重试：每次重新 GET 最新 SHA，最多 5 次，间隔 700ms
+        let pushed=false,lastErr=null;
+        for(let attempt=0;attempt<5&&!pushed;attempt++){
+          let sha=null;
+          try{
+            const getResp=await fetch(`${baseUrl}?ref=${cfg.branch}`,{headers:hdr});
+            if(getResp.ok){const getInfo=await getResp.json();sha=getInfo.sha}
+          }catch(e){/* sha stays null = create new file */}
+          const body={message:'QMS Workbench sync '+new Date().toLocaleString(),content,branch:cfg.branch};
+          if(sha)body.sha=sha; // 仅在有 SHA 时带上，避免 sha:null 导致 409
+          const putResp=await fetch(baseUrl,{method:'PUT',headers:hdr,body:JSON.stringify(body)});
+          if(putResp.ok){pushed=true;break}
+          const errJson=await putResp.json().catch(()=>({}));
+          lastErr=new Error('HTTP '+putResp.status+(errJson.message?' - '+errJson.message:''));
+          if(putResp.status===422)break; // 校验错误，重试无效
+          if(putResp.status===409&&attempt<4){await new Promise(r=>setTimeout(r,700));continue} // 冲突 → 重新获取 SHA
+          break; // 其他错误不重试
+        }
+        if(pushed){
+          const idbRows=Object.values(data.indexedDB||{}).reduce((s,a)=>s+(Array.isArray(a)?a.length:0),0);
           localStorage.setItem('qms_sync_last_time',Date.now());
-          if(status){status.textContent='同步成功：'+new Date().toLocaleTimeString();status.style.color='var(--success)'}
-          // 询问是否拉取
-          setTimeout(()=>{try{/* BUG1 FIX：云端上传成功 - 不弹confirm(会静默false)。用户如要拉取可手动点同步按钮。*/}catch(_){}},100);
+          if(status){status.textContent='同步成功：'+new Date().toLocaleTimeString()+'（含附件'+idbRows+'个）';status.style.color='var(--success)'}
         }else{
-          const err=await putResp.json().catch(()=>({}));
-          if(putResp.status===409){toast('⚠️ 密钥保护拦截(409 Secret)：data.json 含敏感内容被 GitHub 拒绝。已自动排除密码类数据，请重试；仍失败可在仓库 Settings→Security→Push protection 关闭拦截','danger');throw new Error('409 Secret detected - 已排除敏感键，请重试');}
-          else if(putResp.status===401){toast('❌ 401：Token 认证失败或无仓库 Contents 写权限。请检查：fine-grained Token 需在 Repository access 选 qms-workbench 仓库，并给 Contents 权限勾 Read and write','danger');throw new Error('HTTP 401 - Token 无 Contents 写权限');}
-          else if(putResp.status===403){toast('❌ 403：Token 缺少 contents 写权限。fine-grained token 需勾选 Contents: Read and write','danger');throw new Error('HTTP 403 - 检查 Token 写权限');}
-          else if(putResp.status===404){toast('❌ 404：仓库/分支配置有误，或 data.json 无法访问','danger');throw new Error('HTTP 404 - 检查仓库配置');}
-          else{throw new Error('HTTP '+putResp.status+(err.message?' - '+err.message:''));}
+          throw lastErr||new Error('同步失败');
         }
       }catch(e){
         if(status){status.textContent='同步失败：'+(e.message||String(e));status.style.color='var(--danger)'}
@@ -12041,42 +12070,56 @@ function uploadStepImage(event,projectId,stepId){
     if(!silent){
       if(!window.__pullArmed || (Date.now()-window.__pullArmed)>4000){
         window.__pullArmed=Date.now();
-        toast('⚠️ 拉取会用云端 data.json 覆盖本机 qms_ 数据。若确认，请在 4 秒内再次点击「拉取」。','warning');
+        toast('⚠️ 拉取会用云端 data.json 覆盖本机 qms_ 数据与附件。若确认，请在 4 秒内再次点击「拉取」。','warning');
         return;
       }
       window.__pullArmed=0;
     }
     const status=document.getElementById('syncStatus');
     try{
-      const resp=await fetch(`https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/data.json?ref=${cfg.branch}`,{
-        headers:{'Authorization':'token '+cfg.token,'Accept':'application/vnd.github.v3+json'}
-      });
-      if(!resp.ok)throw new Error('文件不存在或无权限');
+      // Token 可选：公开仓库拉取不需要 Token
+      const pullHdr={Accept:'application/vnd.github.v3+json'};
+      if(cfg.token)pullHdr['Authorization']='token '+cfg.token;
+      const resp=await fetch(`https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/data.json?ref=${cfg.branch}`,{headers:pullHdr});
+      if(!resp.ok)throw new Error('文件不存在或无权限(HTTP '+resp.status+')');
       const info=await resp.json();
       const raw=atob(info.content);
       let content;
-      // 检测是否是 XOR 混淆格式（新格式）
-      if(raw.startsWith('__XOR__')){
-        content=_xorDeobfuscate(info.content);
-      }else{
-        // 旧格式：明文 base64
-        content=decodeURIComponent(escape(raw));
-      }
+      if(raw.startsWith('__XOR__')){content=_xorDeobfuscate(info.content)}
+      else{content=decodeURIComponent(escape(raw))}
       const data=JSON.parse(content);
-      {/* BUG1 FIX：云端数据恢复 - 直接继续执行，不弹confirm(避免静默false导致恢复失效) */}{
-        // 清除现有qms_数据（BUGFIX-CERT-RESET：跳过 SYNC_SKIP_KEYS——证书/密码/锁定/附件配置
-        // 不在云端 data.json 中，清除后无法恢复；证书被清会触发 CERT_load 回填默认 7 条）
-        const toDel=[];
-        for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith('qms_')&&!SYNC_SKIP_KEYS[k])toDel.push(k)}
-        toDel.forEach(k=>localStorage.removeItem(k));
-        // 写入云端数据（同样跳过本地独有键，保持"不上云↔不覆盖"对称语义）
-        Object.keys(data).forEach(k=>{if(k.startsWith('qms_')&&!SYNC_SKIP_KEYS[k])localStorage.setItem(k,data[k])});
-        localStorage.setItem('qms_sync_last_time',Date.now());
-        status.textContent='拉取成功：'+new Date().toLocaleTimeString();
-        status.style.color='var(--success)';
-        if(!silent){toast('✅ 数据已恢复！页面将刷新。');location.reload();}
-
+      // 兼容三种格式：v3{format,localStorage,indexedDB} / v2{localStorage,indexedDB} / 旧版{qms_xxx:...}
+      const isStructured=data&&(data.format==='qms_cloud_v3'||data.format==='qms_workbench_cloud_v2'||data.localStorage||data.indexedDB);
+      const localSnap=isStructured?(data.localStorage||{}):data;
+      const idbSnap=isStructured?(data.indexedDB||{}):null;
+      // 安全网：拉取前快照本机数据到 qms_pre_pull_snapshot（属于 SYNC_SKIP_KEYS，不会被清除）
+      try{
+        const preSnap={};
+        for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith('qms_')&&!SYNC_SKIP_KEYS[k])preSnap[k]=localStorage.getItem(k)}
+        localStorage.setItem('qms_pre_pull_snapshot',JSON.stringify(preSnap));
+      }catch(e){}
+      // 清除现有 qms_ 数据（跳过 SYNC_SKIP_KEYS）
+      const toDel=[];
+      for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith('qms_')&&!SYNC_SKIP_KEYS[k])toDel.push(k)}
+      toDel.forEach(k=>localStorage.removeItem(k));
+      // 写入云端 localStorage 数据
+      Object.keys(localSnap).forEach(k=>{if(k.startsWith('qms_')&&!SYNC_SKIP_KEYS[k])localStorage.setItem(k,localSnap[k])});
+      // 恢复 IndexedDB 附件（v2/v3 格式才有）
+      let idbInfo='';
+      if(idbSnap&&StorageRegistry&&StorageRegistry.restoreIdb){
+        try{
+          await GIDB_open();
+          const ir=await StorageRegistry.restoreIdb(idbSnap,false);
+          idbInfo='，附件 '+ir.rows+' 个';
+        }catch(e){console.warn('restore idb fail',e)}
       }
+      localStorage.setItem('qms_sync_last_time',Date.now());
+      status.textContent='拉取成功：'+new Date().toLocaleTimeString()+idbInfo;
+      status.style.color='var(--success)';
+      if(!silent)toast('✅ 数据已恢复（含附件'+idbInfo+'）！页面将刷新。');
+      // 设 skip 标志，防止 reload 后 auto-pull 再次触发形成死循环
+      localStorage.setItem('qms_sync_skip_pull',String(Date.now()));
+      location.reload();
     }catch(e){
       status.textContent='拉取失败：'+e.message;
       status.style.color='var(--danger)';
