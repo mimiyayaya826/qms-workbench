@@ -11827,14 +11827,15 @@ function uploadStepImage(event,projectId,stepId){
   // 拉取(pullData)时也必须跳过它们，否则云端 data.json 覆盖会清除本地 qms_certs，
   // 导致证书模块 CERT_load 读到空数据后自动回填 7 条默认证书（"删除后自动变回初始"）。
   // 云同步 v3：跳过键 = 本机独有（不上云、不被云端覆盖）。含拉取前安全快照键。
-  const SYNC_SKIP_KEYS={'qms_sync_config':1,'qms_sync_last_time':1,'qms_sync_skip_pull':1,'qms_site_lock_pwd':1,'qms_site_pwd':1,'qms_lock_pwd':1,'qms_sitelock':1,'qms_pwd_enc':1,'qms_pwds':1,'qms_certs':1,'qms_certs_ver':1,'qms_cloud_attach_cfg':1,'qms_pre_pull_snapshot':1};
+  // 只跳过纯本地配置（同步配置/防循环标志/拉取快照/锁定密码）。证书/账号密码等业务数据全部上云。
+  const SYNC_SKIP_KEYS={'qms_sync_config':1,'qms_sync_last_time':1,'qms_sync_skip_pull':1,'qms_pre_pull_snapshot':1,'qms_cloud_attach_cfg':1};
   // 云同步数据 = localStorage(文本) + IndexedDB(附件)，与本地备份同构，确保 PC↔iPad 100% 数据一致
   async function collectAllSyncData(){
     const localSnap={};
     const skip=SYNC_SKIP_KEYS;
     for(let i=0;i<localStorage.length;i++){
       const k=localStorage.key(i);
-      if(!k||!k.startsWith('qms_')||skip[k]||/^qms_(pwd|lock|sitelock|secret|token|pass|enc)/i.test(k))continue;
+      if(!k||!k.startsWith('qms_')||skip[k]||/^qms_(site_lock_pwd|site_pwd|lock_pwd|sitelock|pwd_enc)/i.test(k))continue;
       const _v=localStorage.getItem(k);
       if(_v&&/(ghp_[A-Za-z0-9]{20,}|github_pat_|gho_|ghs_|AKIA[0-9A-Z]{16}|xox[bap]-|-----BEGIN[^-]|sk-[A-Za-z0-9]{20,})/.test(_v))continue;
       localSnap[k]=_v;
