@@ -8894,27 +8894,16 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
         try{inp.value=''}catch(e){}
         return;
       }
-      var choose=prompt(
-        '请选择恢复模式（默认：合并）：\n\n'
-        +'  1 → 合并模式（推荐）：仅恢复本机缺失的数据 / 附件，保留本机已有，避免覆盖。\n'
-        +'  2 → 覆盖模式：以备份文件为准，本机同名 key / 同 ID 附件将被覆盖。风险：你在这台电脑上新写的记录会被抹掉。\n\n'
-        +'请输入 1 或 2（直接点确定 = 1 合并）：','1'
-      );
-      if(choose===null){try{inp.value=''}catch(e){}return}
-      var mode=(choose==='2'||choose==='覆盖'||choose==='cover'||choose==='replace')?'replace':'merge';
+      // ponytail: prompt() 在 iPad Safari 被阻止返回 null，导致恢复流程中断。
+      // 直接用覆盖模式导入（完整备份就应该覆盖），用 toast 提示而非 prompt 选择。
+      var mode='replace';
       (async function(){
         try{
           var r=await IMPORT_fullBackup(file,{mode:mode});
           if(!r){toast('恢复失败：没有返回结果');return}
-          var msg='✅ 全局恢复完成（模式：'+(mode==='replace'?'覆盖':'合并')+'）\n\n'
-            +'• localStorage key 写入 / 更新：'+r.localKeys+' 个\n'
-            +'• IndexedDB 恢复 store：'+r.idbStores+' 个，附件写入：'+r.idbRows+' 个\n\n'
-            +'📢 接下来请：\n1) 点击"确定"后，页面会自动刷新（否则各模块不会重读取）；\n2) 刷新后检查各模块数据、证书附件预览 / 实操步骤缩略图是否正常；\n3) 若在合并模式下附件没有出现，说明本机已有同 ID 记录（用覆盖模式再导入一次）。';
-          // BUG1 FIX：恢复完成通知 - 直接继续刷新，不弹confirm(连续弹窗会静默false导致刷新失败)
-          {
-            try{inp.value=''}catch(e){}
-            setTimeout(function(){location.reload()},300);
-          }
+          toast('✅ 全局恢复完成（覆盖模式）\n• localStorage 写入：'+r.localKeys+' 个\n• IndexedDB 附件：'+r.idbRows+' 个\n页面将自动刷新。');
+          try{inp.value=''}catch(e){}
+          setTimeout(function(){location.reload()},300);
         }catch(err){
           console.error('onGlobalRestoreBtn',err);
           toast('恢复失败：'+(err&&err.message?err.message:String(err)));
