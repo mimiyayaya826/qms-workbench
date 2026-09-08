@@ -12022,25 +12022,47 @@ function uploadStepImage(event,projectId,stepId){
         if(!cfg.token){toast('❌ 推送数据需要 Token。请在同步配置中填写 GitHub Personal Access Token（repo 权限）。','danger');return}
         const data=await collectAllSyncData();
         const content=_xorObfuscate(JSON.stringify(data)); // XOR混淆后base64，避免GitHub secret scanning 409
-        const baseUrl=`https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/data.json`;
+        const apiBase=`https://api.github.com/repos/${cfg.owner}/${cfg.repo}`;
         const hdr={'Authorization':'token '+cfg.token,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'};
-        // 409 重试：每次重新 GET 最新 SHA，最多 5 次，间隔 700ms
+        // ponytail: Contents API 限制 ~1MB base64，data.json 含附件后 6MB+ 会 422。
+        // 用 Git Data API（blob→tree→commit→ref）绕过，支持最大 100MB blob。
+        // 409 重试：每次重新获取 ref SHA，最多 5 次
         let pushed=false,lastErr=null;
         for(let attempt=0;attempt<5&&!pushed;attempt++){
-          let sha=null;
           try{
-            const getResp=await fetch(`${baseUrl}?ref=${cfg.branch}`,{headers:hdr});
-            if(getResp.ok){const getInfo=await getResp.json();sha=getInfo.sha}
-          }catch(e){/* sha stays null = create new file */}
-          const body={message:'QMS Workbench sync '+new Date().toLocaleString(),content,branch:cfg.branch};
-          if(sha)body.sha=sha; // 仅在有 SHA 时带上，避免 sha:null 导致 409
-          const putResp=await fetch(baseUrl,{method:'PUT',headers:hdr,body:JSON.stringify(body)});
-          if(putResp.ok){pushed=true;break}
-          const errJson=await putResp.json().catch(()=>({}));
-          lastErr=new Error('HTTP '+putResp.status+(errJson.message?' - '+errJson.message:''));
-          if(putResp.status===422)break; // 校验错误，重试无效
-          if(putResp.status===409&&attempt<4){await new Promise(r=>setTimeout(r,700));continue} // 冲突 → 重新获取 SHA
-          break; // 其他错误不重试
+            // 1) 获取当前 branch ref 的 SHA
+            const refResp=await fetch(`${apiBase}/git/refs/heads/${cfg.branch}`,{headers:hdr});
+            let parentSha=null,baseTreeSha=null;
+            if(refResp.ok){const refInfo=await refResp.json();parentSha=refInfo.object.sha}
+            // 2) 获取父 commit 的 tree SHA
+            if(parentSha){
+              const commitResp=await fetch(`${apiBase}/git/commits/${parentSha}`,{headers:hdr});
+              if(commitResp.ok){const commitInfo=await commitResp.json();baseTreeSha=commitInfo.tree.sha}
+            }
+            // 3) 创建 blob（支持大文件，上限 100MB）
+            const blobResp=await fetch(`${apiBase}/git/blobs`,{method:'POST',headers:hdr,body:JSON.stringify({content,encoding:'base64'})});
+            if(!blobResp.ok){const ej=await blobResp.json().catch(()=>({}));throw new Error('blob: HTTP '+blobResp.status+(ej.message?' - '+ej.message:''))}
+            const blobInfo=await blobResp.json();
+            // 4) 创建 tree（基于父 tree，替换 data.json）
+            const treeBody={base_tree:baseTreeSha,tree:[{path:'data.json',mode:'100644',type:'blob',sha:blobInfo.sha}]};
+            const treeResp=await fetch(`${apiBase}/git/trees`,{method:'POST',headers:hdr,body:JSON.stringify(treeBody)});
+            if(!treeResp.ok){const ej=await treeResp.json().catch(()=>({}));throw new Error('tree: HTTP '+treeResp.status+(ej.message?' - '+ej.message:''))}
+            const treeInfo=await treeResp.json();
+            // 5) 创建 commit
+            const commitBody={message:'QMS Workbench sync '+new Date().toLocaleString(),tree:treeInfo.sha};
+            if(parentSha)commitBody.parents=[parentSha];
+            const commitResp=await fetch(`${apiBase}/git/commits`,{method:'POST',headers:hdr,body:JSON.stringify(commitBody)});
+            if(!commitResp.ok){const ej=await commitResp.json().catch(()=>({}));throw new Error('commit: HTTP '+commitResp.status+(ej.message?' - '+ej.message:''))}
+            const commitInfo=await commitResp.json();
+            // 6) 更新 ref
+            const refBody={sha:commitInfo.sha};
+            const refUpdateResp=await fetch(`${apiBase}/git/refs/heads/${cfg.branch}`,{method:'PATCH',headers:hdr,body:JSON.stringify(refBody)});
+            if(refUpdateResp.ok){pushed=true;break}
+            const errJson=await refUpdateResp.json().catch(()=>({}));
+            lastErr=new Error('ref: HTTP '+refUpdateResp.status+(errJson.message?' - '+errJson.message:''));
+            if(refUpdateResp.status===409&&attempt<4){await new Promise(r=>setTimeout(r,700));continue}
+            break;
+          }catch(e){lastErr=e;if(attempt<4){await new Promise(r=>setTimeout(r,700));continue}break}
         }
         if(pushed){
           const idbRows=Object.values(data.indexedDB||{}).reduce((s,a)=>s+(Array.isArray(a)?a.length:0),0);
