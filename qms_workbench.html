@@ -9612,11 +9612,17 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
   /* ========== 实操记录 v2 ========== */
   var _currentStepId = null; // 当前选中的步骤ID
 
+  // ponytail: qms_projects 含 base64 附件可达 5MB+，localStorage 5MB 限制写不进去。
+  // 用内存缓存 + IndexedDB generic_blobs 做后端，getProjects 同步读缓存，saveProjects 写缓存+异步写IDB。
+  var _projectsCache = null; // 内存缓存，null=未加载
+  var _projectsIdbKey = 'qms_projects_idb'; // generic_blobs 中的 key
+
   function getProjects(){
+    if(_projectsCache !== null) return _projectsCache;
+    // 首次：先试 localStorage（旧数据迁移），空了返回空数组
     var arr=[];
     try{arr=JSON.parse(localStorage.getItem('qms_projects')||'[]')}catch(e){arr=[]}
     if(!Array.isArray(arr)){arr=[];}
-    // 数据迁移：确保每个步骤有新字段
     arr.forEach(function(p){
       if(!p.steps)p.steps=[];
       p.steps.forEach(function(s){
@@ -9627,9 +9633,36 @@ window.QMS_REG_DATA = {"reg_registrar":[{"sub":"① 主体与义务","desc":"注
       });
       if(!p.types)p.types=[];
     });
-    return arr;
+    _projectsCache = arr;
+    // 异步从 IndexedDB 加载最新版（如果有）
+    (async function(){
+      try{
+        await GIDB_open();
+        var rec = await GIDB_get('generic_blobs', _projectsIdbKey);
+        if(rec && rec.data){
+          var idbArr = JSON.parse(rec.data);
+          if(Array.isArray(idbArr)){
+            _projectsCache = idbArr;
+            // 迁移：清掉 localStorage 旧数据释放空间
+            try{localStorage.removeItem('qms_projects')}catch(e){}
+          }
+        }
+      }catch(e){/* IDB 不可用时 fallback 到 localStorage */}
+    })();
+    return _projectsCache;
   }
-  function saveProjects(arr){localStorage.setItem('qms_projects',JSON.stringify(arr))}
+  function saveProjects(arr){
+    _projectsCache = arr; // 立即更新内存缓存
+    // 异步写 IndexedDB（一定能存大文件）
+    (async function(){
+      try{
+        await GIDB_open();
+        await GIDB_put('generic_blobs', {id:_projectsIdbKey, data:JSON.stringify(arr)});
+      }catch(e){console.warn('saveProjects IDB fail', e)}
+    })();
+    // 同时尝试写 localStorage（小数据时能成功，作为兼容）
+    try{localStorage.setItem('qms_projects',JSON.stringify(arr))}catch(e){}
+  }
 
   // 项目类型管理
   var DEFAULT_PROJECT_TYPES=[
@@ -11149,7 +11182,7 @@ function uploadStepImage(event,projectId,stepId){
       }
       if(id==='transition'){
         try{
-          let ps=JSON.parse(localStorage.getItem('qms_projects')||'[]');
+          let ps=getProjects();
           let cnt=0;(ps||[]).forEach(function(p){(p.steps||[]).forEach(function(s){if(s.status!=='done')cnt++})});
           return cnt;
         }catch(e){return 0}
@@ -12130,8 +12163,14 @@ function uploadStepImage(event,projectId,stepId){
       const toDel=[];
       for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith('qms_')&&!SYNC_SKIP_KEYS[k])toDel.push(k)}
       toDel.forEach(k=>localStorage.removeItem(k));
-      // 写入云端 localStorage 数据
-      Object.keys(localSnap).forEach(k=>{if(k.startsWith('qms_')&&!SYNC_SKIP_KEYS[k])localStorage.setItem(k,localSnap[k])});
+      // 写入云端 localStorage 数据（逐 key 容错：单个 key 超 quota 不中断整体流程）
+      let writeFail=[];
+      Object.keys(localSnap).forEach(k=>{
+        if(k.startsWith('qms_')&&!SYNC_SKIP_KEYS[k]){
+          try{localStorage.setItem(k,localSnap[k])}
+          catch(e){writeFail.push(k+'('+(e.name==='QuotaExceededError'?'超5MB':'写失败')+')')}
+        }
+      });
       // 恢复 IndexedDB 附件（v2/v3 格式才有）
       let idbInfo='';
       if(idbSnap&&StorageRegistry&&StorageRegistry.restoreIdb){
@@ -12142,9 +12181,9 @@ function uploadStepImage(event,projectId,stepId){
         }catch(e){console.warn('restore idb fail',e)}
       }
       localStorage.setItem('qms_sync_last_time',Date.now());
-      status.textContent='拉取成功：'+new Date().toLocaleTimeString()+idbInfo;
-      status.style.color='var(--success)';
-      if(!silent)toast('✅ 数据已恢复（含附件'+idbInfo+'）！页面将刷新。');
+      status.textContent='拉取成功：'+new Date().toLocaleTimeString()+idbInfo+(writeFail.length?'；'+writeFail.length+'个key写入失败':'');
+      status.style.color=writeFail.length?'var(--warning)':'var(--success)';
+      if(!silent)toast('✅ 数据已恢复（含附件'+idbInfo+'）'+(writeFail.length?'\n⚠️ '+writeFail.join(', ')+' 写入失败（localStorage 5MB限制）':'')+'\n页面将刷新。');
       // 设 skip 标志，防止 reload 后 auto-pull 再次触发形成死循环
       localStorage.setItem('qms_sync_skip_pull',String(Date.now()));
       location.reload();
