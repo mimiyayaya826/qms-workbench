@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0ea5e9">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="QMS工作台">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="apple-touch-icon" href="icon.svg">
+<title>体系工程师 | QMS Workbench</title>
+<style>
+  html,body{height:100%}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    background:linear-gradient(135deg,#0ea5e9 0%,#0284c7 50%,#0369a1 100%);
+    display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;color:#0f172a}
+  .box{width:100%;max-width:390px;background:#fff;border-radius:20px;padding:30px 26px;box-sizing:border-box;
+    box-shadow:0 20px 60px rgba(2,32,71,.35);text-align:center}
+  .ico{font-size:34px;line-height:1}
+  h1{font-size:19px;margin:12px 0 6px;font-weight:700}
+  p{font-size:13px;color:#64748b;line-height:1.6;margin:0 0 18px}
+  .pw{position:relative;margin-bottom:12px}
+  input{width:100%;box-sizing:border-box;padding:13px 44px 13px 14px;border:2px solid #e0f2fe;border-radius:12px;
+    font-size:16px;outline:none;transition:border-color .2s;color:#0f172a}
+  input:focus{border-color:#0284c7}
+  .eye{position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:18px;
+    user-select:none;color:#64748b;line-height:1}
+  button{width:100%;padding:13px;border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;
+    cursor:pointer;background:linear-gradient(135deg,#0ea5e9,#0284c7);transition:opacity .2s}
+  button:disabled{opacity:.6;cursor:default}
+  .err{min-height:20px;font-size:13px;color:#dc2626;margin-top:10px;line-height:1.5}
+  .tip{font-size:11px;color:#94a3b8;margin-top:14px;line-height:1.6}
+  .spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);
+    border-top-color:#fff;border-radius:50%;animation:sp .8s linear infinite;vertical-align:-2px;margin-right:6px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<form class="box" id="box" autocomplete="off" onsubmit="return false">
+  <div class="ico">🔐</div>
+  <h1>体系工程师工作台</h1>
+  <p id="sub">内容已加密 · 输入访问密码解锁</p>
+  <div class="pw">
+    <input type="password" id="pw" placeholder="访问密码" autocomplete="current-password" enterkeyhint="go">
+    <span class="eye" id="eye" title="显示/隐藏">👁</span>
+  </div>
+  <button id="go" type="button">🔓 解锁</button>
+  <div class="err" id="err"></div>
+  <div class="tip">密码只在本机用于派生解密密钥，不会上传。解锁后本标签页内保持有效，关闭标签页即失效。</div>
+</form>
+<script>
+(function(){
+  'use strict';
+  var SALT_B64='Pi0w758h9hS9WWYcAlqFEA==';
+  var ITER=300000;
+  var KEY_STORE='qms_enc_key_v1';
+  var _key=null, _busy=false;
+
+  function b64ToBytes(b64){
+    var s=atob(b64), a=new Uint8Array(s.length);
+    for(var i=0;i<s.length;i++)a[i]=s.charCodeAt(i);
+    return a;
+  }
+  function bytesToB64(bytes){
+    var s='';for(var i=0;i<bytes.length;i++)s+=String.fromCharCode(bytes[i]);
+    return btoa(s);
+  }
+  var SALT=b64ToBytes(SALT_B64);
+
+  function deriveKey(pwd){
+    if(!window.crypto||!crypto.subtle){
+      return Promise.reject(new Error('当前浏览器不支持 WebCrypto，请使用 HTTPS 打开（GitHub Pages 正常支持）'));
+    }
+    return crypto.subtle.importKey('raw',new TextEncoder().encode(pwd),{name:'PBKDF2'},false,['deriveKey'])
+      .then(function(base){
+        return crypto.subtle.deriveKey(
+          {name:'PBKDF2',salt:SALT,iterations:ITER,hash:'SHA-256'},
+          base,{name:'AES-GCM',length:256},true,['decrypt']);
+      });
+  }
+  function decryptBuffer(key,buf){
+    var b=new Uint8Array(buf);
+    if(b.length<32) return Promise.reject(new Error('密文文件不完整'));
+    if(String.fromCharCode(b[0],b[1],b[2],b[3])!=='QWB1') return Promise.reject(new Error('密文格式不正确'));
+    var iv=b.subarray(4,16), data=b.subarray(16);
+    return crypto.subtle.decrypt({name:'AES-GCM',iv:iv},key,data)
+      .then(function(plain){ return new Uint8Array(plain); });
+  }
+  function decryptToText(buf){
+    if(!_key) return Promise.reject(new Error('尚未解锁'));
+    return decryptBuffer(_key,buf).then(function(u){ return new TextDecoder('utf-8').decode(u); });
+  }
+  window.QWB_CRYPTO={
+    hasKey:function(){return !!_key;},
+    decryptBuffer:function(buf){ return _key?decryptBuffer(_key,buf):Promise.reject(new Error('尚未解锁')); },
+    decryptToText:decryptToText,
+    clearKey:function(){
+      _key=null;
+      try{sessionStorage.removeItem(KEY_STORE);sessionStorage.removeItem('qms_site_unlocked');}catch(e){}
+    }
+  };
+
+  function rememberKey(key){
+    return crypto.subtle.exportKey('raw',key).then(function(raw){
+      try{sessionStorage.setItem(KEY_STORE,bytesToB64(new Uint8Array(raw)));}catch(e){}
+    }).catch(function(){});
+  }
+  function restoreKey(){
+    try{
+      var s=sessionStorage.getItem(KEY_STORE);
+      if(!s) return null;
+      return crypto.subtle.importKey('raw',b64ToBytes(s),{name:'AES-GCM'},true,['decrypt']);
+    }catch(e){ return null; }
+  }
+
+  var $=function(id){return document.getElementById(id);};
+  function setBusy(on,text){
+    _busy=on;
+    var btn=$('go'), sub=$('sub'), inp=$('pw');
+    if(btn){btn.disabled=on;btn.innerHTML=on?'<span class="spin"></span>'+text:(text||'🔓 解锁');}
+    if(sub&&text&&on)sub.textContent=text;
+    if(inp)inp.disabled=on;
+  }
+  function showErr(msg,clearInput){
+    _busy=false;
+    var e=$('err');if(e)e.textContent=msg;
+    var inp=$('pw');
+    if(inp){
+      inp.disabled=false;
+      if(clearInput){inp.value='';}
+      inp.style.borderColor='#dc2626';
+      setTimeout(function(){inp.style.borderColor='#e0f2fe';},1400);
+      inp.focus();
+    }
+    var btn=$('go');if(btn){btn.disabled=false;btn.textContent='🔓 解锁';}
+  }
+
+  function loadApp(){
+    var btn=$('go');if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span>正在解密…';}
+    var sub=$('sub');if(sub)sub.textContent='正在解密内容…';
+    return fetch('app.enc',{cache:'no-cache'}).then(function(r){
+      if(!r.ok) throw new Error('找不到加密内容 app.enc（HTTP '+r.status+'）');
+      return r.arrayBuffer();
+    }).then(function(buf){
+      return decryptToText(buf);
+    }).then(function(html){
+      return rememberKey(_key).then(function(){
+        try{sessionStorage.setItem('qms_site_unlocked','1');}catch(e){}
+        document.open();
+        document.write(html);
+        document.close();
+      });
+    });
+  }
+
+  function unlock(pwd){
+    if(_busy) return;
+    if(!pwd){ showErr('请输入访问密码',false); return; }
+    setBusy(true,'正在校验密码…');
+    var e=$('err');if(e)e.textContent='';
+    deriveKey(pwd).then(function(key){
+      _key=key;
+      return loadApp();
+    }).catch(function(err){
+      _busy=false;
+      // 密钥错误时 GCM 校验失败 → OperationError
+      _key=null;
+      try{sessionStorage.removeItem(KEY_STORE);sessionStorage.removeItem('qms_site_unlocked');}catch(e){}
+      var msg=String(err&&err.message||err);
+      if(err&&err.name==='OperationError'){
+        showErr('❌ 密码错误，无法解密内容',true);
+        var sub=$('sub');if(sub)sub.textContent='内容已加密 · 输入访问密码解锁';
+      }else{
+        showErr('❌ '+msg,false);
+      }
+    });
+  }
+
+  // 交互
+  var eye=$('eye');
+  if(eye)eye.onclick=function(){
+    var i=$('pw');if(!i)return;
+    i.type=i.type==='password'?'text':'password';
+    this.textContent=this.textContent==='👁'?'🙈':'👁';
+  };
+  var go=$('go');
+  if(go)go.onclick=function(){ unlock(($('pw')||{}).value||''); };
+  var inp=$('pw');
+  if(inp)inp.addEventListener('keydown',function(ev){
+    if(ev.key==='Enter'){ev.preventDefault();unlock(inp.value);}
+  });
+
+  // 会话内已解锁：直接解密加载
+  var pending=restoreKey();
+  if(pending&&pending.then){
+    pending.then(function(key){
+      if(!key) return;
+      _key=key;
+      return loadApp().catch(function(){
+        window.QWB_CRYPTO.clearKey();
+        _key=null;
+        setBusy(false);
+        showErr('会话已失效，请重新输入密码',false);
+      });
+    }).catch(function(){
+      window.QWB_CRYPTO.clearKey();
+      _key=null;
+      setBusy(false);
+    });
+  }else{
+    if(inp)inp.focus();
+  }
+})();
+</script>
+</body>
+</html>

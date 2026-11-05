@@ -1,0 +1,152 @@
+{
+  "version": 1,
+  "generatedAt": null,
+  "source": "NMPA/CMDE 自动抓取 + 人工维护基线",
+  "note": "status 取值：effective=现行有效 / revoked=已废止 / revision=修订中 / draft=征求意见(草案)。本文件为基线，GitHub Action 每日尝试增量抓取 NMPA/CMDE 新发布，抓取失败时保留本文件。",
+  "items": [
+    {
+      "id": "cn-tiaoli-739",
+      "title": "医疗器械监督管理条例（国务院令第739号）",
+      "jurisdiction": "🇨🇳 中国NMPA",
+      "category": "行政法规",
+      "status": "effective",
+      "effectiveDate": "2021-06-01",
+      "revokedDate": null,
+      "summary": "医疗器械顶层法规，确立注册人/备案人制度（MAH），规定注册备案、生产经营、使用监督、不良事件监测与召回、法律责任等。",
+      "url": "https://www.nmpa.gov.cn/xxgk/fgwj/flxzhfg/202101/",
+      "module": "reg_registrar"
+    },
+    {
+      "id": "cn-zhuce-47",
+      "title": "医疗器械注册与备案管理办法（国家市场监督管理总局令第47号）",
+      "jurisdiction": "🇨🇳 中国NMPA",
+      "category": "部门规章",
+      "status": "effective",
+      "effectiveDate": "2021-10-01",
+      "revokedDate": null,
+      "summary": "细化注册/备案程序、注册体系核查、变更与延续注册、临床评价要求，是注册人制度落地核心配套规章。",
+      "url": "https://www.nmpa.gov.cn/xxgk/fgwj/bmgzh/202108/",
+      "module": "reg_registrar"
+    },
+    {
+      "id": "cn-shengchan-53",
+      "title": "医疗器械生产监督管理办法（国家市场监督管理总局令第53号）",
+      "jurisdiction": "🇨🇳 中国NMPA",
+      "category": "部门规章",
+      "status": "effective",
+      "effectiveDate": "2022-05-01",
+      "revokedDate": null,
+      "summary": "规范生产许可/备案、委托生产（注册人委托）、生产质量管理体系及监督检查，与 MAH 制度衔接。",
+      "url": "https://www.nmpa.gov.cn/xxgk/fgwj/bmgzh/202203/",
+      "module": "reg_registrar"
+    },
+    {
+      "id": "cn-hecha-2022",
+      "title": "医疗器械注册质量管理体系核查指南（2022年通告）",
+      "jurisdiction": "🇨🇳 中国NMPA",
+      "category": "技术指南",
+      "status": "effective",
+      "effectiveDate": "2022-01-13",
+      "revokedDate": null,
+      "summary": "注册申报前体系核查要点（设计开发/采购/生产/检验/销售全程），指导企业自查与整改闭环。",
+      "url": "https://www.nmpa.gov.cn/ylqx/",
+      "module": "reg_review_guide"
+    },
+    {
+      "id": "cn-buliang-1",
+      "title": "医疗器械不良事件监测和再评价管理办法（国家市场监督管理总局令第1号）",
+      "jurisdiction": "🇨🇳 中国NMPA",
+      "category": "部门规章",
+      "status": "effective",
+      "effectiveDate": "2019-01-01",
+      "revokedDate": null,
+      "summary": "规定注册人/备案人为监测责任主体，个例/群体不良事件报告时限、重点监测、定期风险评价与再评价。",
+      "url": "https://www.nmpa.gov.cn/xxgk/fgwj/bmgzh/",
+      "module": "reg_vigilance"
+    },
+    {
+      "id": "cn-zhaohui-29",
+      "title": "医疗器械召回管理办法（原国家食品药品监督管理总局令第29号）",
+      "jurisdiction": "🇨🇳 中国NMPA",
+      "category": "部门规章",
+      "status": "effective",
+      "effectiveDate": "2017-05-01",
+      "revokedDate": null,
+      "summary": "一/二/三级召回的分级、报告与信息公开要求，与不良事件监测衔接。",
+      "url": "https://www.nmpa.gov.cn/xxgk/fgwj/bmgzh/",
+      "module": "reg_vigilance"
+    },
+    {
+      "id": "cn-guanlidaibiao-2018",
+      "title": "医疗器械生产企业管理者代表管理指南（2018年通告）",
+      "jurisdiction": "🇨🇳 中国NMPA",
+      "category": "管理指南",
+      "status": "effective",
+      "effectiveDate": "2018-09-30",
+      "revokedDate": null,
+      "summary": "明确管代授权、任职条件、职责、履职要求与监管，管代变更需报告。",
+      "url": "https://www.nmpa.gov.cn/xxgk/fgwj/",
+      "module": "reg_rep"
+    },
+    {
+      "id": "cn-zijian-2021",
+      "title": "医疗器械注册自检管理规定（2021年通告）",
+      "jurisdiction": "🇨🇳 中国NMPA",
+      "category": "管理规定",
+      "status": "effective",
+      "effectiveDate": "2021-10-21",
+      "revokedDate": null,
+      "summary": "允许注册申请人自检并提交自检报告，明确检验能力、质量管理体系与真实性要求。",
+      "url": "https://www.nmpa.gov.cn/ylqx/",
+      "module": "reg_review_guide"
+    },
+    {
+      "id": "cn-gbt42062",
+      "title": "GB/T 42062-2022 医疗器械 风险管理对医疗器械的应用（等同 ISO 14971）",
+      "jurisdiction": "🇨🇳 中国NMPA",
+      "category": "强制性国标/行标",
+      "status": "effective",
+      "effectiveDate": "2022-12-29",
+      "revokedDate": null,
+      "summary": "风险管理等同采用 ISO 14971:2019，国内强制要求；与注册体系核查、警戒制度高度关联。",
+      "url": "https://www.nmpa.gov.cn/",
+      "module": "reg_vigilance"
+    },
+    {
+      "id": "cn-mah-tuowei",
+      "title": "注册人制度下委托生产质量协议及现场审核要求（政策解读）",
+      "jurisdiction": "🇨🇳 中国NMPA",
+      "category": "政策解读",
+      "status": "effective",
+      "effectiveDate": "2021-06-01",
+      "revokedDate": null,
+      "summary": "委托生产的，注册人应对受托方现场审核、签订质量协议并监督，承担主体责任。",
+      "url": "https://www.nmpa.gov.cn/",
+      "module": "reg_registrar"
+    },
+    {
+      "id": "cn-jingjie-zhongdian",
+      "title": "医疗器械警戒制度试点扩围（重点监测品种目录动态调整）",
+      "jurisdiction": "🇨🇳 中国NMPA",
+      "category": "试点/制度",
+      "status": "revision",
+      "effectiveDate": null,
+      "revokedDate": null,
+      "summary": "警戒制度由不良事件监测向主动警戒（pharmacovigilance 理念）升级，重点监测品种目录动态调整，相关办法在持续完善中。",
+      "url": "https://www.nmpa.gov.cn/",
+      "module": "reg_vigilance"
+    },
+    {
+      "id": "cn-guobiao-xiugai",
+      "title": "部分医疗器械强制性国家标准（GB）整合/修订征求意见",
+      "jurisdiction": "🇨🇳 中国NMPA",
+      "category": "强制性国标/行标",
+      "status": "draft",
+      "effectiveDate": null,
+      "revokedDate": null,
+      "summary": "标准化管理部门定期就强制性国标整合、修订公开征求意见；以正式发布稿为准。",
+      "url": "https://www.nmpa.gov.cn/",
+      "module": "reg_registrar"
+    }
+  ]
+}
